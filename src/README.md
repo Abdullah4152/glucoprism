@@ -1,57 +1,49 @@
 # Source
 
-Three folders, split by what the code is for.
-
 ```
-core/        the model, data and evaluation code -- imported, not run
-scripts/     corpus build, pretraining and evaluation drivers -- run these
-ablations/   every ablation and analysis reported in the paper
+core/        library code -- imported, not run
+scripts/     experiment drivers -- run these
+ablations/   every ablation and diagnostic in the paper
 ```
 
-## core/
+## Why `core` has two trees
 
-```
-core/glucoprism/     our package: models, data pipeline, probing, training loops
-core/reference/      the reference implementation that trained the two
-                     released models, vendored unchanged
-```
+`core/cgmkit/` is our toolkit: the data pipeline, the evaluation probe, the
+GlucoFM backbone and our own model.
 
-`core/reference/` is vendored deliberately. The two released models were trained
-by `scripts/run_v2port.py`, which imports that tree rather than reimplementing
-it, because a reimplementation risks silent divergence from the checkpoints we
-actually ship. Its package is also called `glucoprism`, so it is kept as a
-separate tree and placed on `sys.path` only inside the runs that need it — do
-not merge the two.
+`core/released_model/` is the implementation that actually trained the two
+released checkpoints, vendored unchanged. `scripts/pretrain_glucoprism.py`
+imports it rather than reimplementing it, because a reimplementation risks
+silent divergence from the weights we ship.
 
-## scripts/
+The two used to collide: both exported a package named `glucoprism`, which
+meant `sys.path` ordering decided which one you got. Ours is renamed `cgmkit`
+so the collision cannot happen. The vendored tree keeps its original package
+names (`glucoprism`, `glucofm`) because changing them would make it no longer a
+faithful copy of what trained the weights.
 
-Ordinary reproduction path: build a corpus, pretrain, embed, score, tabulate.
-See `scripts/README.md`.
+## What is deliberately not here
 
-## ablations/
-
-Every ablation, negative result and diagnostic in the paper, mapped to the
-section that reports it. See `ablations/README.md`.
+No other paper's architecture. CGM-JEPA, X-CGM-JEPA, GluFormer and the
+Glucodensity CQP model live in `baselines/common/models/`, next to the scripts
+that reproduce them. `core/cgmkit/models/` holds three files: the shared
+primitives, the backbone this paper builds on, and this paper's model.
 
 ## Paths
-
-Nothing here hardcodes an absolute path. Each script resolves:
 
 ```python
 ROOT   = os.environ.get("GLUCOPRISM_ROOT", <repo root>)
 OUTDIR = os.environ.get("GLUCOPRISM_OUT",  ROOT / "artifacts")
 ```
 
-Set `GLUCOPRISM_ROOT` if you run scripts from outside the repository, and
-`GLUCOPRISM_OUT` if you want intermediates somewhere other than `./artifacts`.
+Scripts put `src/core` and `baselines` on `sys.path` themselves, so `import
+cgmkit` and `import common.models...` work from anywhere.
 
-## One implementation detail worth reading before you change anything
+## One detail to read before changing anything
 
-The predictive objectives operate on aligned mg/dL values, while the pooled
-representation is normalised. Conflating the two makes the encoder level-blind:
-on a +60 mg/dL shift the correct handling moves the representation by 0.136 and
-the conflated variant by 8.7e-06. A model that gets this wrong trains,
-converges, and is silently unable to represent hyperglycemia — which is fatal
-for every endpoint in this benchmark, because HbA1c, HOMA-IR and hypoglycemia
-are all functions of absolute glucose level. It is invisible in the loss curves.
-See `core/glucoprism/models/glucofm.py`.
+The predictive objectives operate on aligned mg/dL values while the pooled
+representation is normalised. Conflating them makes the encoder level-blind: on
+a +60 mg/dL shift, correct handling moves the representation by 0.136 and the
+conflated variant by 8.7e-06. The model still trains and converges — it is
+simply unable to represent hyperglycemia, which is fatal for every endpoint
+here, and invisible in the loss curves. See `core/cgmkit/models/glucofm.py`.

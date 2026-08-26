@@ -1,64 +1,45 @@
 # Baselines
 
-Two kinds of baseline appear in the paper, and they are reproduced differently.
+One folder per baseline. Each has a `README.md` and a `reproduce.py` that runs
+that model end to end.
 
-## 1. CGM foundation models, pretrained by us on our corpus
-
-GlucoFM, CGM-JEPA, X-CGM-JEPA and GluFormer-tiny are reimplemented in
-`src/core/glucoprism/models/` and pretrained on the same corpus, with the same
-schedule and the same frozen folds as our own models. This is what makes the
-comparison paired: every model sees identical windows and is probed on
-identical splits.
-
-```bash
-python ../src/scripts/run_pretrain.py --model glucofm        --seed 0
-python ../src/scripts/run_pretrain.py --model cgm_jepa       --seed 0
-python ../src/scripts/run_pretrain.py --model x_cgm_jepa     --seed 0
-python ../src/scripts/run_pretrain.py --model gluformer_tiny --seed 0
+```
+glucofm/     cgm_jepa/   x_cgm_jepa/   gluformer/     pretrained by us
+cgmformer/   chronos/    moment/       mantis/        used zero-shot
+common/      shared drivers and the baseline architectures
 ```
 
-Run three seeds for anything you intend to compare.
+## Two kinds of baseline
 
-Our checkpoints for these are in `../weights/` (`*-ours.safetensors`), so you
-can skip pretraining and go straight to scoring.
+**Pretrained by us.** GlucoFM, CGM-JEPA, X-CGM-JEPA and GluFormer-tiny are
+reimplemented and pretrained on our corpus, with the same schedule and the same
+frozen folds as our own models. That is what makes the comparison paired: every
+model sees identical windows and is probed on identical splits. Our checkpoints
+are in `../weights/`, so pretraining is optional.
 
-### Checking the reimplementations
+**Used zero-shot.** Chronos-2, MOMENT, Mantis, MantisV2 and CGMformer are used
+as published and never retrained. Their weights are **not** in this repository —
+they belong to their authors and carry their own licences.
+`reproduce.py` fetches them from the original sources.
 
-```bash
-python verify_cgm_jepa.py
+## common/
+
+```
+models/               CGM-JEPA, GluFormer and CQP architectures
+pretrain.py           shared driver for the models we pretrain
+fetch_checkpoints.py  downloads third-party checkpoints
+embed_zeroshot.py     embeds the four downstream cohorts
+probe_zeroshot.py     frozen-fold probing, identical protocol
+verify_bit_exact.py   regression test against the reference implementation
 ```
 
-This is a bit-exactness regression test against the reference implementation.
-It guards the blocks shared between models: a change to `blocks.py` that
-silently alters CGM-JEPA would invalidate every comparison in the paper, and
-this catches it.
+The architectures live here rather than in `core` because they are other
+people's models; `core` holds only this paper's model and the backbone it
+builds on.
 
-Our GlucoFM reproduction lands at 720,278 trainable parameters against the
-720,241 reported in the original paper, and preserves the published ordering of
-models on the benchmark. If your reproduction does not, something is wrong
-before you start comparing.
+## Why we ran seven third-party models ourselves
 
-## 2. Zero-shot time-series foundation models
-
-Chronos-2, Chronos-2-small, MOMENT-large, MOMENT-small, Mantis, MantisV2 and
-CGMformer are used as published, never retrained on our corpus. Their weights
-are **not** redistributed here — they belong to their authors and carry their
-own licences.
-
-```bash
-python fetch_baselines.py          # downloads from the original sources
-python run_baselines.py            # embeds the four downstream cohorts
-python score_baselines.py          # frozen-fold probing, identical protocol
-```
-
-`fetch_baselines.py` needs network access and, for some checkpoints, a
-HuggingFace token in the usual environment variable. No credential is stored in
-this repository.
-
-## The protocol that makes these comparable
-
-Every baseline is embedded frozen and probed with exactly the protocol in the
-root `README.md` — same regression settings, same folds, same two reporting
-levels. The point of reproducing seven third-party models under one probe is
-that CGM papers rarely report them, and when the protocol differs the numbers
-are not comparable. If you change the probe, change it for every model.
+CGM papers rarely report general-purpose time-series foundation models, and when
+they do the probe usually differs, which makes the numbers incomparable. Every
+model here is embedded frozen and probed with exactly the protocol in the root
+`README.md`. If you change the probe, change it for every model.

@@ -29,8 +29,11 @@ released under the same terms.
 
 Third-party checkpoints evaluated in the paper (Chronos-2, MOMENT, Mantis,
 MantisV2, CGMformer) are NOT redistributed here. They are downloaded from their
-original sources by baselines/fetch_baselines.py and remain under their own
+original sources by baselines/<model>/reproduce.py and remain under their own
 licences.
+
+The vendored implementation in src/core/released_model/ is included because it
+produced the released checkpoints.
 
 The source cohorts are public but are not redistributed. Each carries its own
 access conditions and data-use agreement; see data/README.md.

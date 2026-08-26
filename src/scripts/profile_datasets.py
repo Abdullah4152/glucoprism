@@ -11,6 +11,16 @@ divergence is visible rather than buried.
 
 from __future__ import annotations
 
+import os as _os, sys as _sys
+from pathlib import Path as _P
+ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
+                          _P(__file__).resolve().parents[2]))
+OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
+for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+    if str(_p) not in _sys.path:
+        _sys.path.insert(0, str(_p))
+
+
 import argparse
 import json
 import sys
@@ -20,10 +30,10 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "src" / "core"))
 
-from glucoprism.data import harmonize, labels as L  # noqa: E402
-from glucoprism.data.windows import split_segments  # noqa: E402
+from cgmkit.data import harmonize, labels as L  # noqa: E402
+from cgmkit.data.windows import split_segments  # noqa: E402
 
 
 def profile(name: str) -> dict:

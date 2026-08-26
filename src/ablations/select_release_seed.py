@@ -6,23 +6,30 @@ rather than an eye. The rule, fixed before the transfer axis was looked at:
     ship the seed with the best mean over the 14 within-cohort cells at
     window level -- the paper's primary evaluation protocol.
 
-This script applies that rule and also prints the two axes the rule does NOT
-use, so a reader can see whether the alternatives would have chosen
-differently. For one of the two models they do, and saying so is the point:
-picking the axis after seeing the numbers is how release selection turns into
-cherry-picking.
+This applies that rule and then prints the two axes the rule does NOT use, so a
+reader can see whether the alternatives would have chosen differently. For one
+of the two models they do, and saying so is the point: choosing the axis after
+seeing the numbers is how release selection turns into cherry-picking.
 
     python src/ablations/select_release_seed.py
 """
 from __future__ import annotations
 
-import os
+import os as _os, sys as _sys
+from pathlib import Path as _P
+ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
+                          _P(__file__).resolve().parents[2]))
+OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
+for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+    if str(_p) not in _sys.path:
+        _sys.path.insert(0, str(_p))
+
+
 from pathlib import Path
 
 import pandas as pd
 
-ROOT = Path(os.environ.get("GLUCOPRISM_ROOT", Path(__file__).resolve().parents[2]))
-A = Path(os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
+A = ROOT / "experiments/artifacts"
 
 MODELS = [("GlucoPRISM-C", "C-v2-vib01", "C-v2-vib01:zTzS"),
           ("GlucoPRISM-E", "E-v2-vib-simbias", "E-v2-vib-simbias:zTzS")]
@@ -54,7 +61,7 @@ def main() -> None:
         w = v2[(v2.arm == arm) & (v2.block == "zTzS") & (v2.level == "window")]
         s = v2[(v2.arm == arm) & (v2.block == "zTzS") & (v2.level == "subject")]
         if not len(w):
-            print(f"  no scores for {arm}; run v2_score_npy.py first")
+            print(f"  no scores for {arm}; run probe_frozen_folds.py first")
             continue
         print(f"{'seed':>5}{'window':>10}{'subject':>10}{'transfer':>11}")
         win, sub, trm = {}, {}, {}

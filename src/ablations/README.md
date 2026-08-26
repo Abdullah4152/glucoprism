@@ -1,66 +1,75 @@
 # Ablations
 
-Every ablation, diagnostic and negative result in the paper, mapped to the
-section that reports it. All of these run on CPU from already-embedded runs
-unless the "needs" column says otherwise.
+Every ablation, diagnostic and negative result in the paper. Scripts are named
+for the question they answer — the originals were named after an internal
+decision log (`fd3`, `fd7`, `rev_`), which meant nothing to a reader.
 
-| Script | Reports | Needs |
+All of these run on CPU from already-embedded runs unless "needs" says otherwise.
+
+| Script | Question it answers | Needs |
 |---|---|---|
-| `confound_analyse.py` | the 2x2 over objectives and bottleneck | `--no-protocol` runs |
-| `capacity_analyse.py` | Sensor-block width and KL-weight sweep | width/beta runs |
-| `fd8_analyse.py` | capacity crossed with how the factorization is obtained | 1x/5x runs |
-| `rbg_fraction_study.py` | corpus composition and leave-one-cohort-out | corpus-fraction runs |
-| `fd7_analyse.py`, `fd7_decide.py` | window and patch geometry | geometry runs |
-| `run_posthoc_heads.py`, `posthoc_collect.py` | post-hoc factorization of a frozen encoder | embeddings |
-| `fd3_block_controls.py` | block controls at matched width | embeddings |
-| `reviewer_analyses.py` | erasure baseline, partial deletion, calibration, device predictability, block dependence | embeddings |
-| `rev_generator_robustness.py` | paired-sensor generator stability under resampling | paired measurements |
-| `fd9_sensor_analysis.py` | the real Dexcom/Libre disagreement | CGMacros pairs |
-| `fd9_fit_generator.py`, `fd9_validate_generator.py` | fitting and validating the synthetic partner | CGMacros pairs |
-| `power_analysis.py` | detectable effect size given the protocol | scores |
-| `test_patch_geometry.py` | patchify correctness under lookback and overlap | — |
+| `objectives_x_bottleneck_2x2.py` | do the objectives and the bottleneck work alone, or only together? | `--no-protocol` runs |
+| `sensor_block_capacity_sweep.py` | does the benefit track the Sensor block's width and KL price? | width/beta runs |
+| `model_capacity_x_factorization.py` | is the interference a capacity problem? | 1x and 5x runs |
+| `corpus_composition.py` | is corpus volume or corpus diversity the constraint? | corpus-fraction runs |
+| `window_patch_geometry.py` | which windowing choices matter? | geometry runs |
+| `window_geometry_decision.py` | which geometry to keep, and why | geometry runs |
+| `posthoc_factorization_fit.py` | can the blocks be fitted after training? | embeddings |
+| `posthoc_factorization_collect.py` | collects the above into the reported comparison | — |
+| `block_controls_matched_width.py` | is the gain just a narrower probe input? | embeddings |
+| `shortcut_and_erasure_diagnostics.py` | five questions, listed below | embeddings |
+| `sensor_generator_robustness.py` | is the synthetic sensor generator fragile? | paired measurements |
+| `paired_sensor_measurement.py` | how do two real sensors actually disagree? | CGMacros pairs |
+| `sensor_generator_fit.py` | fit the generator to the measurement | CGMacros pairs |
+| `sensor_generator_validate.py` | does the synthetic partner match real pairs? | CGMacros pairs |
+| `fewshot_multiday_and_stability.py` | label efficiency, multi-day pooling, trait stability | embeddings |
+| `statistical_power.py` | what effect size can this protocol resolve? | scores |
+| `patchify_unit_tests.py` | patchify correctness under lookback and overlap | — |
+| `config_smoke_test.py` | does a config train at all, before queueing it? | GPU |
+| `window_start_diversity_check.py` | window start-time spread, a leakage sanity check | shards |
+| `embed_confound_arms.py` | embeds the confound arms through the identical path | checkpoints |
 | `select_release_seed.py` | which seed of each released model ships | scores |
-| `embed_confound.py` | embeds the confound arms through the identical path | checkpoints |
-| `smoke_configs.py` | short runs that check a config trains before it is queued | GPU |
-| `check_start_diversity.py` | window start-time spread, a leakage sanity check | shards |
+
+`shortcut_and_erasure_diagnostics.py` answers five separate questions in one
+pass because they share the embedding load: post-hoc nullspace erasure as an
+alternative to the reserved block; partial deletion; calibration under transfer;
+how predictable the device is from the observation mask alone; and whether the
+blocks separated, measured with HSIC as well as correlation.
 
 ## Reproducing the arms these need
 
-Several scripts analyse runs that must be trained first:
-
 ```bash
 # objectives off, everything else identical -- the 2x2
-python ../scripts/run_v2port.py --corpus corpus_v2fmt_ov40.npz --no-protocol --seed 0
-python ../scripts/run_v2port.py --corpus corpus_v2fmt_ov40.npz --no-protocol \
-       --use-vib --w-vib 0.1 --seed 0
+python ../scripts/pretrain_glucoprism.py --corpus corpus_v2fmt_ov40.npz \
+       --no-protocol --seed 0
+python ../scripts/pretrain_glucoprism.py --corpus corpus_v2fmt_ov40.npz \
+       --no-protocol --use-vib --w-vib 0.1 --seed 0
 
 # Sensor-block capacity: width, then KL price
-python ../scripts/run_v2port.py --corpus corpus_v2fmt_ov40.npz --use-vib \
-       --w-vib 0.1 --d-sensor 8   --seed 0
-python ../scripts/run_v2port.py --corpus corpus_v2fmt_ov40.npz --use-vib \
-       --w-vib 1.0 --seed 0
+python ../scripts/pretrain_glucoprism.py --corpus corpus_v2fmt_ov40.npz \
+       --use-vib --w-vib 0.1 --d-sensor 8 --seed 0
+python ../scripts/pretrain_glucoprism.py --corpus corpus_v2fmt_ov40.npz \
+       --use-vib --w-vib 1.0 --seed 0
 ```
 
-Then embed and score them the same way as everything else:
+Then embed and score them like everything else:
 
 ```bash
-python ../scripts/embed_subset.py K-          # or any substring
-python ../scripts/v2_score_npy.py --runs ... --blocks full zTzS
+python ../scripts/embed_cohorts_subset.py K-
+python ../scripts/probe_frozen_folds.py --runs ... --blocks full zTzS
 ```
 
-## A note on reading these
+## Two analyses that exist because we got it wrong first
 
-Two of the analyses here exist because we got the answer wrong first, and the
-scripts carry the corrected form:
+`posthoc_factorization_collect.py` reports the pre-specified comparison, not
+"did any of five blocks win". The second reading returns a better-looking number
+and is selection bias: the winning block is chosen after seeing the result and
+is never the same block twice.
 
-- `posthoc_collect.py` reports the pre-specified comparison, not "did any of
-  five blocks win". The second reading returns a better-looking number and is
-  selection bias, because the winning block is chosen after seeing the result
-  and is never the same block twice.
-- `reviewer_analyses.py` measures partial deletion by dimension count, not by
-  scaling. Scaling the block is a no-op under a standardising probe — the scale
-  divides out exactly — and a sweep over scale factors returns identical numbers
-  to three decimals while appearing to measure something.
+`shortcut_and_erasure_diagnostics.py` measures partial deletion by dimension
+count, not by scaling. Scaling the block is a no-op under a standardising probe
+— the scale divides out exactly — so a sweep over scale factors returns
+identical numbers to three decimals while appearing to measure something.
 
-Both are documented in the scripts themselves. The negative and retracted
-results are listed in the paper's final appendix.
+Both are documented in the scripts. The paper's final appendix lists the full
+set of negative and retracted results.

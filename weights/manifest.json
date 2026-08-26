@@ -1,29 +1,41 @@
 {
-  "glucoprism-c": {
-    "source_checkpoint": "glucoprism-c-s5.safetensors"
+  "glucoprism_c": {
+    "file": "glucoprism-c.safetensors",
+    "from": "glucoprism-c-s5.safetensors",
+    "note": "Released model, within-cohort. Seed 5."
   },
-  "glucoprism-e": {
-    "source_checkpoint": "glucoprism-e-s1.safetensors"
+  "glucoprism_e": {
+    "file": "glucoprism-e.safetensors",
+    "from": "glucoprism-e-s1.safetensors",
+    "note": "Released model, cross-cohort. Seed 1."
   },
-  "glucofm-ours": {
-    "source_checkpoint": "glucofm-ours-s0.safetensors"
+  "glucofm": {
+    "file": "glucofm.safetensors",
+    "from": "glucofm-ours-s0.safetensors",
+    "note": "Our reproduction of the backbone, our corpus."
   },
-  "cgm-jepa-ours": {
+  "cgm_jepa": {
     "tensors": 71,
     "params": 1280224,
     "mb": 5.13,
-    "source_checkpoint": "cgm_jepa.pt"
+    "file": "cgm-jepa.safetensors",
+    "from": "cgm_jepa.pt",
+    "note": "Our reproduction of CGM-JEPA, our corpus."
   },
-  "x-cgm-jepa-ours": {
+  "x_cgm_jepa": {
     "tensors": 136,
     "params": 2540768,
     "mb": 10.18,
-    "source_checkpoint": "x_cgm_jepa.pt"
+    "file": "x-cgm-jepa.safetensors",
+    "from": "x_cgm_jepa.pt",
+    "note": "Our reproduction of X-CGM-JEPA, our corpus."
   },
-  "gluformer-tiny-ours": {
+  "gluformer": {
     "tensors": 51,
     "params": 648268,
     "mb": 2.6,
-    "source_checkpoint": "gluformer_tiny.pt"
+    "file": "gluformer-tiny.safetensors",
+    "from": "gluformer_tiny.pt",
+    "note": "Our reproduction of GluFormer-tiny, our corpus."
   }
 }

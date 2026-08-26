@@ -10,8 +10,7 @@ kaggle*.json
 *.pem
 
 # Data. The raw cohorts are public but not ours to redistribute, and the built
-# corpus is large. data/splits_frozen.json is the deliberate exception and is
-# force-added.
+# corpus is large. data/splits_frozen.json is the deliberate exception.
 data/raw/
 data/interim/
 data/processed/
@@ -26,8 +25,7 @@ checkpoints/
 *.pt
 *.pth
 *.ckpt
-# ...but the released weights are tracked
-!weights/*.safetensors
+!weights/**/*.safetensors
 
 # Python
 __pycache__/

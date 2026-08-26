@@ -1,63 +1,49 @@
 # Core
 
-Library code. These modules are imported by `../scripts/` and `../ablations/`;
-none of them is a program you run directly.
+Library code. Imported by `../scripts/` and `../ablations/`; nothing here is a
+program you run.
 
 ```
-glucoprism/
-  models/     GlucoFM backbone, CGM-JEPA, GluFormer, blocked pooling, CQP
-  data/       harmonisation, windowing, labels, augmentation, protocol views
-  eval/       the frozen-fold probe and subject-level aggregation
-  train/      pretraining loops
-reference/    the vendored implementation that trained the two released models
+cgmkit/            our toolkit
+  models/          blocks.py, glucofm.py (backbone), prism.py (this paper)
+  data/            harmonisation, windowing, labels, augmentation, views
+  eval/            frozen-fold probe and subject-level aggregation
+  train/           pretraining loops
+released_model/    vendored: the code that trained the released checkpoints
+  glucoprism/      blocked pooling, the three objectives, the VIB, sensor_sim
+  glucofm/         the backbone it wraps
 ```
 
-## glucoprism/models/
+## cgmkit/models/
 
-`glucofm.py` is the backbone every model here builds on: grid alignment with a
-preserved observation mask, patchification with circadian encoding, a learnable
-causal mask-aware Gaussian filter splitting a slow state stream from a residual
-event stream, and a context encoder trained against an EMA target.
+Three files, deliberately. `blocks.py` holds primitives shared with the
+baselines — changing it silently alters them, which is why
+`baselines/common/verify_bit_exact.py` is a bit-exactness test rather than an
+approximate one. `glucofm.py` is the backbone. `prism.py` is this paper's model.
 
-Two things in this file are load-bearing and easy to break:
+Two things in `glucofm.py` are easy to break:
 
-- **Aligned mg/dL versus normalised values.** The predictive objectives operate
-  on aligned mg/dL; the pooled representation is normalised. Conflating them
-  makes the encoder level-blind — measured on a +60 mg/dL shift, correct
-  handling moves the representation by 0.136 and the conflated variant by
-  8.7e-06. Nothing in the loss curves reveals it, and every endpoint in this
-  benchmark depends on absolute level.
+- **Aligned mg/dL versus normalised values** — see `../README.md`.
 - **`patchify` under lookback.** With no lookback, `P * K` must equal `L` and
-  patches tile the day exactly. With lookback, patches overlap and the stride,
-  not `K`, governs masking and circadian indexing. `../ablations/test_patch_geometry.py`
-  checks both cases.
+  patches tile the day exactly. With lookback they overlap, and the *stride*,
+  not `K`, governs masking and circadian indexing.
+  `../ablations/patchify_unit_tests.py` covers both.
 
-`blocks.py` is shared between models. Changing it silently alters the
-reproductions, which is why `../../baselines/verify_cgm_jepa.py` is a
-bit-exactness regression test rather than an approximate one.
-
-## glucoprism/data/
+## cgmkit/data/
 
 `augment.py` holds the synthetic second-sensor generator. Its constants are
-*measured* on real paired windows rather than assumed — prior synthetic views in
-this literature carry no calibration offset at all, where the real one is
--31.1 mg/dL with 43 of 44 subjects agreeing in sign. `views.py` builds the
-paired-sensor and repeated-day views.
+**measured** on real paired windows, not assumed: prior synthetic views in this
+literature carry no calibration offset where the real one is -31.1 mg/dL with 43
+of 44 subjects agreeing in sign. `views.py` builds the paired-sensor and
+repeated-day views.
 
-Note that array index 0 is a window's own first reading, not midnight. Two
-same-day windows from different devices generally start at different clock
-times, and comparing them index-wise without aligning on `start_idx` produces
-silently wrong results.
+Array index 0 is a window's own first reading, **not midnight**. Two same-day
+windows from different devices generally start at different clock times;
+comparing them index-wise without aligning on `start_idx` gives silently wrong
+answers.
 
-## glucoprism/eval/
+## released_model/
 
-`probe.py` implements the protocol: logistic regression, `l2`, `lbfgs`,
-`max_iter=1000`, no inner search over `C`, no class weighting, on folds read
-from disk rather than regenerated. `aggregate.py` does subject-level pooling.
-
-## reference/
-
-Vendored unchanged, and byte-identical to the tree that trained the released
-checkpoints. Its package is also named `glucoprism`, so it must go on
-`sys.path` *before* ours and only inside the runs that need it — see
-`../scripts/run_v2port.py`. Do not merge the two trees.
+Vendored unchanged and byte-identical to the tree that produced the released
+checkpoints. It is placed on `sys.path` only inside the runs that need it — see
+`../scripts/pretrain_glucoprism.py`.
