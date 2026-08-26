@@ -1,0 +1,170 @@
+[
+  {
+    "dataset": "bigideas",
+    "readings": 36898,
+    "subjects": 16,
+    "devices": [
+      "dexcom"
+    ],
+    "hours": 3074.8,
+    "pt_windows": 177,
+    "pt_subjects": 16,
+    "pt_mean_coverage": 0.9351
+  },
+  {
+    "dataset": "cgmacros",
+    "readings": 147278,
+    "subjects": 45,
+    "devices": [
+      "dexcom",
+      "libre"
+    ],
+    "hours": 19189.2,
+    "ds_windows": 838,
+    "ds_subjects": 45,
+    "ds_mean_coverage": 0.5586,
+    "label_file": "cgmacros_labels.csv",
+    "label_counts": {
+      "diabetes_3class": {
+        "1.0": 16,
+        "0.0": 15,
+        "2.0": 14
+      },
+      "ir": {
+        "1.0": 32,
+        "0.0": 13
+      },
+      "hyperlipidemia": {
+        "0.0": 33,
+        "1.0": 12
+      },
+      "obesity": {
+        "1.0": 23,
+        "0.0": 22
+      }
+    }
+  },
+  {
+    "dataset": "colas",
+    "readings": 114253,
+    "subjects": 208,
+    "devices": [
+      "ipro"
+    ],
+    "hours": 9521.1,
+    "pt_windows": 391,
+    "pt_subjects": 205,
+    "pt_mean_coverage": 0.9969,
+    "label_file": "colas_labels.csv",
+    "label_counts": {}
+  },
+  {
+    "dataset": "d1namo",
+    "readings": 8055,
+    "subjects": 9,
+    "devices": [
+      "ipro"
+    ],
+    "hours": 671.2,
+    "pt_windows": 60,
+    "pt_subjects": 7,
+    "pt_mean_coverage": 0.9999
+  },
+  {
+    "dataset": "hall",
+    "readings": 105417,
+    "subjects": 57,
+    "devices": [
+      "dexcom"
+    ],
+    "hours": 8784.8,
+    "ds_windows": 255,
+    "ds_subjects": 57,
+    "ds_mean_coverage": 0.9777,
+    "label_file": "hall_labels.csv",
+    "label_counts": {
+      "diabetes": {
+        "0.0": 38,
+        "1.0": 19
+      },
+      "ir": {
+        "0.0": 35,
+        "1.0": 21
+      },
+      "hyperlipidemia": {
+        "0.0": 48,
+        "1.0": 8
+      },
+      "glucotype": {
+        "0.0": 35,
+        "1.0": 22
+      }
+    }
+  },
+  {
+    "dataset": "replacebg",
+    "readings": 14807435,
+    "subjects": 226,
+    "devices": [
+      "dexcom"
+    ],
+    "hours": 1233952.9,
+    "pt_windows": 9040,
+    "pt_subjects": 226,
+    "pt_mean_coverage": 0.978
+  },
+  {
+    "dataset": "shanghait2dm",
+    "readings": 112462,
+    "subjects": 109,
+    "devices": [
+      "libre"
+    ],
+    "hours": 28115.5,
+    "pt_windows": 722,
+    "pt_subjects": 40,
+    "pt_mean_coverage": 0.3333,
+    "label_file": "shanghait2dm_labels.csv",
+    "label_counts": {
+      "ir": {
+        "1.0": 47,
+        "0.0": 29
+      },
+      "hyperlipidemia": {
+        "0.0": 64,
+        "1.0": 27
+      },
+      "hypoglycemia": {
+        "0.0": 99,
+        "1.0": 10
+      }
+    }
+  },
+  {
+    "dataset": "stanford",
+    "readings": 485215,
+    "subjects": 56,
+    "devices": [
+      "dexcom"
+    ],
+    "hours": 40434.6,
+    "pt_windows": 622,
+    "pt_subjects": 27,
+    "pt_mean_coverage": 0.983,
+    "label_file": "stanford_labels.csv",
+    "label_counts": {
+      "diabetes": {
+        "0": 23,
+        "1": 21
+      },
+      "beta_cell": {
+        "0": 22,
+        "1": 22
+      },
+      "ir": {
+        "0": 23,
+        "1": 21
+      }
+    }
+  }
+]

@@ -1,0 +1,50 @@
+# Credentials -- never commit. The development tree kept live Kaggle and
+# HuggingFace keys beside the code; these patterns exist so that can never
+# reach a remote.
+.kaggle/
+kaggle*.json
+*_key.txt
+*token*.txt
+.olauth
+.env
+*.pem
+
+# Data. The raw cohorts are public but not ours to redistribute, and the built
+# corpus is large. data/splits_frozen.json is the deliberate exception and is
+# force-added.
+data/raw/
+data/interim/
+data/processed/
+*.npz
+*.npy
+!data/splits_frozen.json
+
+# Training artefacts
+artifacts/
+kaggle_out/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+# ...but the released weights are tracked
+!weights/*.safetensors
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+*.egg-info/
+
+# LaTeX
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.synctex.gz
+
+# OS
+.DS_Store
+Thumbs.db

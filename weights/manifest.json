@@ -1,0 +1,29 @@
+{
+  "glucoprism-c": {
+    "source_checkpoint": "glucoprism-c-s5.safetensors"
+  },
+  "glucoprism-e": {
+    "source_checkpoint": "glucoprism-e-s1.safetensors"
+  },
+  "glucofm-ours": {
+    "source_checkpoint": "glucofm-ours-s0.safetensors"
+  },
+  "cgm-jepa-ours": {
+    "tensors": 71,
+    "params": 1280224,
+    "mb": 5.13,
+    "source_checkpoint": "cgm_jepa.pt"
+  },
+  "x-cgm-jepa-ours": {
+    "tensors": 136,
+    "params": 2540768,
+    "mb": 10.18,
+    "source_checkpoint": "x_cgm_jepa.pt"
+  },
+  "gluformer-tiny-ours": {
+    "tensors": 51,
+    "params": 648268,
+    "mb": 2.6,
+    "source_checkpoint": "gluformer_tiny.pt"
+  }
+}

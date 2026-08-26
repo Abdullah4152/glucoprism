@@ -1,0 +1,147 @@
+{
+  "fm_config": {
+    "grid": {
+      "length": 288,
+      "dt_min": 5,
+      "n_patches": 24,
+      "patch_size": 12
+    },
+    "filt": {
+      "sigma_init": 6.0,
+      "sigma_min": 2.0,
+      "sigma_max": 12.0,
+      "truncation": 3,
+      "max_lookback": 9
+    },
+    "model": {
+      "state_wave_dim": 64,
+      "state_diff_dim": 16,
+      "state_stat_dim": 48,
+      "event_wave_dim": 48,
+      "event_roc_dim": 48,
+      "event_stat_dim": 32,
+      "stream_dim": 64,
+      "embed_dim": 128,
+      "n_heads": 4,
+      "ffn_dim": 256,
+      "n_layers": 3,
+      "predictor_layers": 1,
+      "transition_hidden": 256,
+      "dropout": 0.1,
+      "scale_inject": false,
+      "scale_hidden": 64,
+      "global_norm": true,
+      "global_mean": 141.07,
+      "global_std": 57.97,
+      "expected_trainable": 720000,
+      "expected_total": 1180000,
+      "param_tolerance": 0.08
+    },
+    "pretrain": {
+      "mask_ratio_low": 0.5,
+      "mask_ratio_high": 0.6,
+      "ema_momentum": 0.997,
+      "ema_final": 1.0,
+      "ema_schedule": true,
+      "w_mcr": 1.0,
+      "w_td": 1.0,
+      "smooth_l1_beta": 1.0,
+      "epochs": 300,
+      "batch_size": 128,
+      "lr": 0.0001,
+      "lr_sigma": 0.001,
+      "weight_decay": 0.01,
+      "warmup_frac": 0.05,
+      "grad_clip": 1.0,
+      "seed": 1
+    },
+    "aug": {
+      "wander_prob": 0.25,
+      "wander_amp": [
+        5.0,
+        15.0
+      ],
+      "wander_freq": [
+        0.5,
+        2.0
+      ],
+      "compress_prob": 0.1,
+      "compress_len": [
+        6,
+        12
+      ],
+      "compress_min_mult": [
+        0.4,
+        0.7
+      ],
+      "decimate_prob": 0.2,
+      "decimate_keep": 3,
+      "dropout_prob": 0.25,
+      "dropout_blocks": [
+        1,
+        3
+      ],
+      "dropout_len": [
+        6,
+        24
+      ],
+      "cooccurrence_decay": 0.5,
+      "enabled": true
+    },
+    "probe": {
+      "n_folds": 5,
+      "n_iterations": 10,
+      "max_iter": 2000,
+      "C": 1.0,
+      "standardize": true,
+      "seed": 0
+    }
+  },
+  "prism_config": {
+    "d_trait": 64,
+    "d_state": 48,
+    "d_sensor": 16,
+    "w_sensor": 0.2,
+    "w_day": 0.2,
+    "w_indep": 0.1,
+    "beta_day_info": 0.5,
+    "day_margin": 0.3,
+    "temperature": 0.1,
+    "w_variance": 1.0,
+    "var_target": null,
+    "n_devices": 8,
+    "hierarchical": false,
+    "step_skip": 4,
+    "w_l2": 1.0,
+    "use_cmp": true,
+    "w_cmp": 1.0,
+    "use_xday_cmp": false,
+    "w_xday": 1.0,
+    "circadian_metrics": false,
+    "stat_pool": true,
+    "use_adv": false,
+    "w_adv": 1.0,
+    "adv_ramp": 0.2,
+    "structural": false,
+    "za_inputs": "rough+mask",
+    "rough_to": "state",
+    "block_norm": false,
+    "decorr_targets": false,
+    "use_vib": true,
+    "w_vib": 1.0,
+    "vib_free_bits": 0.0,
+    "use_agg": false,
+    "w_agg": 1.0,
+    "use_dayjepa": false,
+    "w_dayjepa": 1.0,
+    "n_days": 4,
+    "day_layers": 2,
+    "use_sensor": true,
+    "use_day": true,
+    "use_indep": true
+  },
+  "readout": "zT||zS",
+  "d_trait": 64,
+  "d_state": 48,
+  "d_sensor": 16
+}

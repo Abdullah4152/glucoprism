@@ -1,0 +1,85 @@
+{
+  "frac": 0.1,
+  "seed": 0,
+  "subjects": [
+    "bigideas:010",
+    "bigideas:011",
+    "colas:case027",
+    "colas:case056",
+    "colas:case070",
+    "colas:case073",
+    "colas:case080",
+    "colas:case094",
+    "colas:case101",
+    "colas:case109",
+    "colas:case114",
+    "colas:case118",
+    "colas:case124",
+    "colas:case126",
+    "colas:case133",
+    "colas:case149",
+    "colas:case160",
+    "colas:case163",
+    "colas:case184",
+    "colas:case191",
+    "colas:case205",
+    "replacebg:103",
+    "replacebg:11",
+    "replacebg:118",
+    "replacebg:146",
+    "replacebg:168",
+    "replacebg:174",
+    "replacebg:176",
+    "replacebg:224",
+    "replacebg:228",
+    "replacebg:241",
+    "replacebg:246",
+    "replacebg:252",
+    "replacebg:253",
+    "replacebg:263",
+    "replacebg:264",
+    "replacebg:277",
+    "replacebg:288",
+    "replacebg:37",
+    "replacebg:48",
+    "replacebg:64",
+    "replacebg:77",
+    "replacebg:8",
+    "replacebg:80",
+    "shanghait2dm:2051_0_20210512",
+    "shanghait2dm:2061_0_20210601",
+    "shanghait2dm:2081_0_20210817",
+    "shanghait2dm:2099_0_20201116",
+    "stanford:43883-122",
+    "stanford:S52",
+    "stanford:S54"
+  ],
+  "n_subjects": 51,
+  "per_cohort": {
+    "replacebg_pt": {
+      "n_subjects": 226,
+      "n_holdout": 23,
+      "n_windows_holdout": 920
+    },
+    "stanford_pt": {
+      "n_subjects": 27,
+      "n_holdout": 3,
+      "n_windows_holdout": 23
+    },
+    "shanghait2dm_pt": {
+      "n_subjects": 40,
+      "n_holdout": 4,
+      "n_windows_holdout": 29
+    },
+    "colas_pt": {
+      "n_subjects": 191,
+      "n_holdout": 19,
+      "n_windows_holdout": 38
+    },
+    "bigideas_pt": {
+      "n_subjects": 16,
+      "n_holdout": 2,
+      "n_windows_holdout": 10
+    }
+  }
+}

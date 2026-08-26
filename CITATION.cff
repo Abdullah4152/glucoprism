@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this code, the released weights, or the frozen evaluation folds, please cite the paper."
+title: "GlucoPRISM: reserved subspaces for CGM foundation models"
+abstract: >-
+  Code, weights and reproduction scripts for "Naming the Nuisance: Reserved
+  Subspaces Buy Control, Not Disentanglement, in CGM Foundation Models".
+  Includes two released models, reproductions of four CGM foundation models on
+  a public-only corpus, seven zero-shot time-series baselines under a single
+  probe, and the frozen evaluation folds used for every reported number.
+authors:
+  - name: "The GlucoPRISM authors"
+license: MIT
+keywords:
+  - continuous glucose monitoring
+  - foundation models
+  - representation learning
+  - shortcut learning
+  - concept erasure
+preferred-citation:
+  type: conference-paper
+  title: "Naming the Nuisance: Reserved Subspaces Buy Control, Not Disentanglement, in CGM Foundation Models"
+  authors:
+    - name: "The GlucoPRISM authors"
+  year: 2026

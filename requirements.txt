@@ -1,0 +1,21 @@
+# Core. Pinned loosely: these are the ranges the results were produced under.
+torch>=2.1,<3
+numpy>=1.24,<3
+pandas>=2.0,<3
+scipy>=1.10,<2
+scikit-learn>=1.3,<2
+safetensors>=0.4
+
+# Figures and tables
+matplotlib>=3.7,<4
+
+# Reading the source cohorts (formats vary by cohort)
+pyarrow>=12
+openpyxl>=3.1
+
+# Optional: fetching third-party zero-shot checkpoints in baselines/
+# huggingface_hub>=0.20
+# transformers>=4.38
+
+# Optional: fanning pretraining runs out across Kaggle GPU sessions
+# kaggle>=1.6

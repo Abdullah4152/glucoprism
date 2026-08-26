@@ -1,0 +1,11 @@
+"""Thin wrapper so the dataset layer does not import the model package."""
+
+from __future__ import annotations
+
+import numpy as np
+
+from ..models.gluformer import GLUCOSE_MAX, GLUCOSE_MIN, N_BINS, tokenize_glucose
+
+
+def to_tokens(g: np.ndarray, n_bins: int = N_BINS) -> np.ndarray:
+    return tokenize_glucose(g, n_bins=n_bins, lo=GLUCOSE_MIN, hi=GLUCOSE_MAX)
