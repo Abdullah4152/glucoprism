@@ -16,7 +16,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -28,8 +33,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
-ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src" / "core"))
 
 from cgmkit.data import harmonize, labels as L  # noqa: E402

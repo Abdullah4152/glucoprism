@@ -17,7 +17,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -33,21 +38,21 @@ import torch
 from safetensors.torch import load_file
 
 warnings.filterwarnings("ignore")
-ROOT = ROOT
-REF = ROOT / "external" / "glucoprism_v2_reference"
+REF = REFERENCE
 sys.path.insert(0, str(REF))
 from glucofm.config import Config                       # noqa: E402
 from glucofm.model import GlucoFMEncoder                # noqa: E402
 from glucoprism.model import BlockedPool, PrismConfig   # noqa: E402
 
-WEIGHTS = OUTDIR / "weights"
+from cgmkit import release_weights as _rw
+WEIGHTS = _rw.WEIGHTS
 PROC = ROOT / "data" / "processed"
 
 
 def load(model: str, seed: int):
     """Rebuild encoder + pool from the released safetensors and its config."""
-    st = load_file(str(WEIGHTS / f"{model}-s{seed}.safetensors"))
-    cfg = json.loads((WEIGHTS / f"{model}-s{seed}.config.json").read_text())
+    st = load_file(str(_rw.checkpoint(model, seed)))
+    cfg = json.loads((_rw.config(model, seed)).read_text())
 
     fm = Config()
     for sec in ("model", "grid", "filt"):

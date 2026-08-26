@@ -16,7 +16,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -27,7 +32,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import wilcoxon
 
-A = ROOT / "experiments/artifacts"
+A = (OUTDIR)
 d = pd.read_csv(A / "v2_final_scores.csv")
 d = d[d.block.isin(["zTzS", "full"])].copy()
 d["arm"] = d.run.str.replace(r"-s\d$", "", regex=True)

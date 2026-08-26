@@ -28,7 +28,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -43,10 +48,8 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-
-ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src" / "core"))
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "src" / "scripts"))
 
 from cgmkit.data.datasets import WindowShard          # noqa: E402
 from cgmkit.data.labels import TASK_MATRIX            # noqa: E402
@@ -85,7 +88,7 @@ def build_glucofm(ck: Path):
 
 
 def build_cqp(ck: Path):
-    from cgmkit.models.cqp import CQPConfig, GlucoCQP
+    from common.models.cqp import CQPConfig, GlucoCQP
     from cgmkit.models.glucofm import GlucoFMConfig
     blob = torch.load(ck, map_location="cpu", weights_only=False)
     c = dict(blob["cfg"]); c["fm"] = GlucoFMConfig(**c["fm"])
@@ -112,7 +115,7 @@ def build_prism(ck: Path):
 
 
 def build_cgm_jepa(ck: Path):
-    from cgmkit.models.cgm_jepa import Encoder
+    from common.models.cgm_jepa import Encoder
     blob = torch.load(ck, map_location="cpu", weights_only=False)
     cfg = blob["cfg"]
     enc = Encoder(dim_in=cfg["patch_size"], kernel_size=cfg["encoder_kernel_size"],

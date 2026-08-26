@@ -17,15 +17,21 @@ SCRIPTS = ROOT / "src" / "scripts"
 MODEL = 'gluformer'
 SEEDS = (0, 1, 2)
 
-for seed in SEEDS:
-    cmd = [sys.executable, str(COMMON / "pretrain.py"),
-           "--model", MODEL, "--seed", str(seed)]
-    print(f"\n=== pretrain seed {seed}")
-    if subprocess.run(cmd).returncode:
-        sys.exit(f"pretraining failed at seed {seed}")
 
-for script in ("embed_cohorts.py", "probe_pretrained_models.py"):
-    cmd = [sys.executable, str(SCRIPTS / script)]
-    print(f"\n=== {script}")
-    if subprocess.run(cmd).returncode:
-        sys.exit(f"{script} failed")
+def main() -> None:
+    for seed in SEEDS:
+        cmd = [sys.executable, str(COMMON / "pretrain.py"),
+               "--model", MODEL, "--seed", str(seed)]
+        print(f"\n=== pretrain seed {seed}")
+        if subprocess.run(cmd).returncode:
+            sys.exit(f"pretraining failed at seed {seed}")
+
+    for script in ("embed_cohorts.py", "probe_pretrained_models.py"):
+        cmd = [sys.executable, str(SCRIPTS / script)]
+        print(f"\n=== {script}")
+        if subprocess.run(cmd).returncode:
+            sys.exit(f"{script} failed")
+
+
+if __name__ == "__main__":
+    main()

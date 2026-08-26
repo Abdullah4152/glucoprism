@@ -16,7 +16,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -27,8 +32,6 @@ import sys
 from pathlib import Path
 
 import numpy as np
-
-ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src" / "core"))
 
 from cgmkit.data.datasets import (CGMJEPADataset, GlucoFMDataset,  # noqa: E402
@@ -133,7 +136,7 @@ def main() -> int:
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
 
     if a.model == "cqp":
-        from cgmkit.models.cqp import CQPConfig, cqp_param_report
+        from common.models.cqp import CQPConfig, cqp_param_report
         from cgmkit.models.glucofm import GlucoFMConfig
         cfg = CQPConfig(fm=GlucoFMConfig(**fm_kwargs()),
                         n_queries=a.n_queries, d_query=a.d_model // a.n_queries,

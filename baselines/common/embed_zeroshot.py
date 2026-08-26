@@ -28,7 +28,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -45,15 +50,13 @@ import torch
 
 warnings.filterwarnings("ignore")
 os.environ.setdefault("HF_HOME", r"D:\hf_cache")
-
-ROOT = ROOT
 sys.path.insert(0, str(ROOT / "src" / "core"))
 from cgmkit.data.datasets import WindowShard          # noqa: E402
 from cgmkit.data.labels import TASK_MATRIX            # noqa: E402
 
 PROC = ROOT / "data" / "processed"
-OUT = ROOT / "experiments" / "artifacts" / "baseline_emb"
-CGMF = ROOT / "external" / "cgmformer" / "ckpt" / "cgm_ckp"
+OUT = OUTDIR / "baseline_emb"
+CGMF = EXTERNAL / "cgmformer" / "ckpt" / "cgm_ckp"
 OUT.mkdir(parents=True, exist_ok=True)
 DEV = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -101,9 +104,9 @@ def embed_moment(g, m, repo: str, batch: int = 64) -> np.ndarray:
 def embed_mantis(g, m, which: str, batch: int = 128) -> np.ndarray:
     from mantis.architecture import Mantis8M, MantisV2
     if which == "v1":
-        net = Mantis8M(device=DEV).from_pretrained(str(ROOT / "external" / "Mantis"))
+        net = Mantis8M(device=DEV).from_pretrained(str(EXTERNAL / "Mantis"))
     else:
-        net = MantisV2(device=DEV).from_pretrained(str(ROOT / "external" / "MantisV2"))
+        net = MantisV2(device=DEV).from_pretrained(str(EXTERNAL / "MantisV2"))
     net.to(DEV).eval()
     x = interp_to(g, m, 512)                       # App. B.1: 512 points
     outs = []

@@ -37,7 +37,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -52,10 +57,8 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src" / "core"))
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "src" / "scripts"))
 
 from cgmkit.data.datasets import WindowShard            # noqa: E402
 from cgmkit.data.labels import TASK_MATRIX              # noqa: E402
@@ -160,6 +163,22 @@ def fit_heads(Z, pair_a, pair_b, dev_a, dev_b, day, subj, *, d, epochs, lr,
                    "day": float(l_day), "indep": float(l_ind), "var": float(l_var)}
 
 
+def _released_or_hint(name):
+    """This analysis refits heads, so it needs a TRAINING
+    checkpoint. The release ships inference-only tensors, so point
+    the user at pretraining rather than at a missing file."""
+    p = ROOT / "weights" / name
+    if p.exists():
+        return p
+    raise SystemExit(
+        f"{name} not found. This ablation refits projection heads "
+        f"on a frozen encoder, so it needs a training checkpoint, "
+        f"which the release does not ship (weights/ holds "
+        f"inference tensors only). Pretrain first:\n"
+        f"  python baselines/common/pretrain.py --model glucofm --seed 0\n"
+        f"then pass --checkpoint <path>.")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--encoder", default="glucofm",
@@ -185,9 +204,9 @@ def main() -> int:
     ap.add_argument("--out", default=str(ROOT / "artifacts" / "posthoc"))
     a = ap.parse_args()
 
-    import run_eval as RE
+    import evaluate_models as RE
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
-    ck = Path(a.checkpoint) if a.checkpoint else ROOT / "weights" / RE.EMBEDDERS[a.encoder][0]
+    ck = Path(a.checkpoint) if a.checkpoint else _released_or_hint(RE.EMBEDDERS[a.encoder][0])
     shards = {c: WindowShard(PROCESSED / f"{c}_ds.npz") for c in TASK_MATRIX}
     EMB = {c: RE.EMBEDDERS[a.encoder][1](ck, s) for c, s in shards.items()}
     d = EMB["cgmacros"].shape[1]

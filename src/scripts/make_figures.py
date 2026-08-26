@@ -11,7 +11,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -27,8 +32,8 @@ import numpy as np
 import pandas as pd
 
 warnings.filterwarnings("ignore")
-A = ROOT / "experiments/artifacts"
-OUT = OUTDIR / "figures"
+A = (OUTDIR)
+OUT = (OUTDIR / "figures")
 OUT.mkdir(parents=True, exist_ok=True)
 
 plt.rcParams.update({
@@ -63,7 +68,7 @@ def fig_mechanism():
            "cross\ncohort", "cross\ndevice"]
     # Read from canonical.json rather than hardcoding: these were typed in once
     # and then went stale when the drop was restated on three matched seeds.
-    _c = json.loads(ROOT / "experiments/artifacts/canonical.json".read_text())
+    _c = json.loads((OUTDIR / "canonical.json").read_text())
     ours = [_c["dropw"], _c["drops"], _c["trdropc"], 8.50]
     ctrl = [0.05, 0.02, 0.08, 0.16]
     x = np.arange(4)
@@ -94,7 +99,7 @@ def fig_loss_competition():
             ("without them", "V4-fm-off-s0", "glucofm_history.jsonl", C_OURS)]
     fig, axs = plt.subplots(1, 2, figsize=(W1 * 2.05, 2.0))
     for lbl, run, hist, col in runs:
-        p = ROOT / "experiments/kaggle_out" / run / "checkpoints" / hist
+        p = (RUNS) / run / "checkpoints" / hist
         if not p.exists():
             continue
         rows = [json.loads(l) for l in p.read_text().splitlines() if l.strip()]
@@ -105,7 +110,7 @@ def fig_loss_competition():
     axs[0].set_title("the representation objective", fontsize=8.5, pad=4)
     axs[0].legend(loc="upper left")
 
-    p = ROOT / "experiments/kaggle_out" / "V1-fm-joint-s0" / "checkpoints" / "prism_history.jsonl"
+    p = (RUNS) / "V1-fm-joint-s0" / "checkpoints" / "prism_history.jsonl"
     if p.exists():
         rows = [json.loads(l) for l in p.read_text().splitlines() if l.strip()]
         ep = [r["epoch"] for r in rows]

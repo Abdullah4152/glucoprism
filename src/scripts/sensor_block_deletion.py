@@ -11,7 +11,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -25,17 +30,16 @@ import numpy as np
 import pandas as pd
 
 warnings.filterwarnings("ignore")
-ROOT = ROOT
-for p in ("src", "scripts", "experiments/scripts"):
+for p in ("src/core", "src/scripts"):
     sys.path.insert(0, str(ROOT / p))
 
-import run_eval as RE                                      # noqa: E402
+import evaluate_models as RE                                      # noqa: E402
 from cgmkit.data.datasets import WindowShard           # noqa: E402
-from fd3_cross_dataset import labels, COHORTS, TASKS       # noqa: E402
-from fd3_block_controls import transfer, subj              # noqa: E402
+from cross_cohort_transfer import labels, COHORTS, TASKS       # noqa: E402
+from block_controls_matched_width import transfer, subj              # noqa: E402
 
-EMB = ROOT / "experiments" / "artifacts" / "v2emb"
-OUT = ROOT / "experiments" / "kaggle_out"
+EMB = OUTDIR / "v2emb"
+OUT = RUNS
 shards = {c: WindowShard(ROOT / "data" / "processed" / f"{c}_ds.npz")
           for c in COHORTS}
 
@@ -69,7 +73,7 @@ for seed in (0, 1, 2):
                                      tgt=tgt, task=task, auc=a))
 
 df = pd.DataFrame(recs)
-df.to_csv(ROOT / "experiments" / "artifacts" / "fd3_drop_za.csv", index=False)
+df.to_csv(OUTDIR / "fd3_drop_za.csv", index=False)
 
 g = df.groupby(["variant", "seed", "src", "tgt", "task"]).auc.mean()
 print(f"{'variant':<30}{'s0':>7}{'s1':>7}{'s2':>7}{'mean':>8}")

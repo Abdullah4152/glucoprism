@@ -22,7 +22,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -36,20 +41,18 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-
-ROOT = ROOT
 KDIR = Path(os.environ["USERPROFILE"]) / ".kaggle"
-ART = ROOT / "experiments" / "artifacts"
+ART = OUTDIR
 def state_path() -> Path:
     """One state file per stage, so stages can be run and resumed independently."""
     return ART / f"orchestrator_state_{STAGE}.json"
-OUTDIR = ROOT / "experiments" / "kaggle_out"
+OUTDIR = RUNS
 BUILD = ROOT / "kaggle"
 DATASET_SLUG = "glucoprism-corpus"
 ACCELERATOR = "NvidiaTeslaT4"
 SLOTS_PER_ACCOUNT = 2
 
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "src" / "scripts"))
 
 
 # ------------------------------------------------------------------ accounts
@@ -185,14 +188,14 @@ def build_queue(stage: str | None = None) -> list[dict]:
 
         def prism(tag, seed, *extra):
             return {"id": f"{tag}-s{seed}", "stage": "FD8", "model": "prism",
-                    "script": "run_prism.py", "seed": seed,
+                    "script": "pretrain_proposal_variant.py", "seed": seed,
                     "extra": [*base, "--head-layers", "2",
                               "--lambda-sensor", "0.2", "--lambda-day", "0.2",
                               "--lambda-indep", "0.1", *extra]}
 
         def fm(tag, seed, *extra):
             return {"id": f"{tag}-s{seed}", "stage": "FD8", "model": "glucofm",
-                    "script": "run_pretrain.py", "seed": seed,
+                    "script": "pretrain.py", "seed": seed,
                     "extra": [*base, *extra]}
 
         q = []
@@ -216,7 +219,7 @@ def build_queue(stage: str | None = None) -> list[dict]:
 
         def run(tag, suffix, datasets, seed=0):
             return {"id": f"{tag}-s{seed}", "stage": "FD45", "model": "glucofm",
-                    "script": "run_pretrain.py", "seed": seed,
+                    "script": "pretrain.py", "seed": seed,
                     "extra": ["--shard-suffix", suffix, "--datasets", *datasets]}
 
         q = []
@@ -238,7 +241,7 @@ def build_queue(stage: str | None = None) -> list[dict]:
         # number in the paper sits on one substrate.
         def v2(tag, seed, *extra):
             return {"id": f"{tag}-s{seed}", "stage": "V2", "model": "v2port",
-                    "script": "run_v2port.py", "seed": seed,
+                    "script": "pretrain_glucoprism.py", "seed": seed,
                     "extra": ["--corpus", "corpus_v2fmt_ov40.npz", *extra]}
 
         q = []
@@ -270,7 +273,7 @@ def build_queue(stage: str | None = None) -> list[dict]:
         # sigma. The peak was explicitly not claimed at the time. This tests the
         # question on the architecture we actually release.
         return [{"id": f"C-rbg{p}-s{s}", "stage": "V2C", "model": "v2port",
-                 "script": "run_v2port.py", "seed": s,
+                 "script": "pretrain_glucoprism.py", "seed": s,
                  "extra": ["--corpus", f"corpus_v2fmt_ov40f{p}.npz",
                            "--use-vib", "--w-vib", "0.1"]}
                 for p in (50, 70) for s in (0, 1, 2)]
@@ -280,7 +283,7 @@ def build_queue(stage: str | None = None) -> list[dict]:
         # between 100 % and 50 % on every axis, so it is an interpolation point,
         # not a release candidate.
         return [{"id": f"C-rbg50-s{s}", "stage": "V2C", "model": "v2port",
-                 "script": "run_v2port.py", "seed": s,
+                 "script": "pretrain_glucoprism.py", "seed": s,
                  "extra": ["--corpus", "corpus_v2fmt_ov40f50.npz",
                            "--use-vib", "--w-vib", "0.1"]}
                 for s in (3, 4, 5)]
@@ -293,7 +296,7 @@ def build_queue(stage: str | None = None) -> list[dict]:
         # of 1.67 and 2.06 -- their spread is genuine task heterogeneity and more
         # seeds would not touch it, so they do not get extra runs.
         return [{"id": f"C-v2-vib01-s{s}", "stage": "V2", "model": "v2port",
-                 "script": "run_v2port.py", "seed": s,
+                 "script": "pretrain_glucoprism.py", "seed": s,
                  "extra": ["--corpus", "corpus_v2fmt_ov40.npz",
                            "--use-vib", "--w-vib", "0.1"]}
                 for s in (3, 4, 5)]
@@ -304,7 +307,7 @@ def build_queue(stage: str | None = None) -> list[dict]:
         # offset) leads cross-dataset. They touch different parts of the model,
         # so there is no reason they should not compose.
         return [{"id": f"E-v2-vib-simbias-s{s}", "stage": "V2", "model": "v2port",
-                 "script": "run_v2port.py", "seed": s,
+                 "script": "pretrain_glucoprism.py", "seed": s,
                  "extra": ["--corpus", "corpus_v2fmt_ov40.npz",
                            "--use-vib", "--w-vib", "1.0",
                            "--sim-bias", "measured"]}
@@ -341,12 +344,12 @@ def package(user: str) -> Path:
     (out / "processed").mkdir(parents=True)
     shutil.copytree(ROOT / "src" / "core" / "glucoprism", out / "src" / "glucoprism",
                     ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
-    for s in (ROOT / "scripts").glob("*.py"):
+    for s in (ROOT / "src" / "scripts").glob("*.py"):
         shutil.copy(s, out / "scripts" / s.name)
     # The v2 trainer is the sibling repo's own code. Its package is ALSO called
     # `glucoprism`, so it ships as a separate tree and is put on sys.path only
     # inside the v2 kernels.
-    ref = ROOT / "external" / "glucoprism_v2_reference"
+    ref = REFERENCE
     if ref.exists():
         shutil.copytree(ref, out / "reference",
                         ignore=shutil.ignore_patterns("__pycache__", "*.pyc",
@@ -460,7 +463,7 @@ if torch.cuda.is_available() and "T4" not in dev:
     print("!! expected a T4, got", dev, "-- results would be CPU-slow", flush=True)
 
 SCRIPT = "{script}"
-if SCRIPT == "run_v2port.py":
+if SCRIPT == "pretrain_glucoprism.py":
     # The sibling repo's trainer needs its own tree present where run_v2port.py
     # expects it: ROOT/external/glucoprism_v2_reference.
     REF = find("reference")
@@ -473,21 +476,21 @@ if SCRIPT == "run_v2port.py":
 cmd = [sys.executable, str(WORK / "scripts" / SCRIPT),
        "--epochs", "{epochs}", "--seed", "{seed}",
        "--out", str(WORK / "checkpoints")]
-if SCRIPT == "run_pretrain.py":
+if SCRIPT == "pretrain.py":
     cmd += ["--model", "{model}", "--batch-size", "{bs}", "--log-every", "10"]
 cmd += {extra}
 print("train:", " ".join(map(str, cmd)), flush=True)
 rc = subprocess.run(cmd, cwd=str(WORK)).returncode
 print("pretrain exit", rc, flush=True)
 
-if SCRIPT == "run_v2port.py":
+if SCRIPT == "pretrain_glucoprism.py":
     # Their package is also named `glucoprism`, so it cannot be imported
     # alongside ours in one process. These checkpoints are scored locally by the
     # two-stage embed/score path instead.
     rc2 = 0
     print("eval skipped for v2port -- scored locally", flush=True)
 else:
-    rc2 = subprocess.run([sys.executable, str(WORK / "scripts" / "run_eval.py"),
+    rc2 = subprocess.run([sys.executable, str(WORK / "scripts" / "evaluate_models.py"),
                           "--checkpoints", str(WORK / "checkpoints"),
                           "--models", "{model}", "--out", str(WORK / "eval")],
                          cwd=str(WORK)).returncode
@@ -513,7 +516,7 @@ def push_run(acc: dict, run: dict, epochs: int, bs: int) -> tuple[bool, str]:
     kdir.mkdir(parents=True, exist_ok=True)
     (kdir / f"{slug}.py").write_text(KERNEL.format(
         run_id=run["id"], model=run["model"], epochs=epochs, bs=bs,
-        script=run.get("script", "run_pretrain.py"),
+        script=run.get("script", "pretrain.py"),
         seed=run["seed"], extra=repr(list(run["extra"])),
         dataset_slug=DATASET_SLUG), encoding="utf-8")
     (kdir / "kernel-metadata.json").write_text(json.dumps({

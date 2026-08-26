@@ -21,7 +21,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -33,12 +38,12 @@ import numpy as np
 import pandas as pd
 from scipy.stats import wilcoxon
 
-A = ROOT / "experiments/artifacts"
+A = (OUTDIR)
 OUT_J = A / "canonical.json"
 # Written to BOTH trees. Keeping only the final_materials copy meant the Overleaf
 # project silently kept a stale canonical.tex and every new macro compiled as an
 # undefined control sequence.
-OUT_TS = [OUTDIR / "tex/canonical.tex",
+OUT_TS = [(OUTDIR / "tex/canonical.tex"),
           Path(r"D:\overleaf\glucoprismm\glucoprism_v2\canonical.tex")]
 OUT_T = OUT_TS[0]
 

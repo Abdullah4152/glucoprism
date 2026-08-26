@@ -19,7 +19,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -32,7 +37,7 @@ import torch
 from safetensors.torch import save_file
 
 SRC = ROOT
-OUT = OUTDIR / "weights"
+OUT = (OUTDIR / "weights")
 RUNS = SRC / "experiments" / "kaggle_out"
 OUT.mkdir(parents=True, exist_ok=True)
 
@@ -116,10 +121,10 @@ print("\n=== zero-shot baselines ===")
 # the whole release is uniform and pickle-free.
 import os
 os.environ.setdefault("HF_HOME", r"D:\hf_cache")
-BASE_OUT = OUTDIR / "weights/baselines"
+BASE_OUT = (OUTDIR / "weights/baselines")
 BASE_OUT.mkdir(parents=True, exist_ok=True)
 
-CGMF = SRC / "external" / "cgmformer" / "ckpt" / "cgm_ckp" / "checkpoint-30000"
+CGMF = EXTERNAL / "cgmformer" / "ckpt" / "cgm_ckp" / "checkpoint-30000"
 if (CGMF / "pytorch_model.bin").exists():
     sd = torch.load(CGMF / "pytorch_model.bin", map_location="cpu", weights_only=False)
     sd = dedup({k: v for k, v in sd.items() if torch.is_tensor(v)})
@@ -135,8 +140,8 @@ HF = {"moment-small": "AutonLab/MOMENT-1-small",
       "moment-large": "AutonLab/MOMENT-1-large",
       "chronos-2": "amazon/chronos-2",
       "chronos-2-small": "autogluon/chronos-2-small"}
-LOCAL = {"mantis": SRC / "external" / "Mantis",
-         "mantis-v2": SRC / "external" / "MantisV2"}
+LOCAL = {"mantis": EXTERNAL / "Mantis",
+         "mantis-v2": EXTERNAL / "MantisV2"}
 
 for name, repo in list(HF.items()) + [(k, v) for k, v in LOCAL.items()]:
     try:
@@ -164,6 +169,6 @@ for name, repo in list(HF.items()) + [(k, v) for k, v in LOCAL.items()]:
         print(f"  {name:<20} FAILED {type(e).__name__}: {str(e)[:90]}")
 
 (OUT / "manifest.json").write_text(json.dumps(manifest, indent=2))
-tot = sum(p.stat().st_size for p in OUTDIR / "weights".rglob("*")
+tot = sum(p.stat().st_size for p in (OUTDIR / "weights").rglob("*")
           if p.is_file()) / 1e6
 print(f"\nweights total: {tot:.1f} MB")

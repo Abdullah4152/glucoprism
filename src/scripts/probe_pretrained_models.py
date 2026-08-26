@@ -12,7 +12,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -27,11 +32,10 @@ import numpy as np
 import pandas as pd
 
 warnings.filterwarnings("ignore")
-ROOT = ROOT
 sys.path.insert(0, str(ROOT / "src" / "core"))
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "src" / "scripts"))
 
-import run_eval as RE                                          # noqa: E402
+import evaluate_models as RE                                          # noqa: E402
 from cgmkit.data.datasets import WindowShard               # noqa: E402
 from cgmkit.data.labels import TASK_MATRIX                 # noqa: E402
 from cgmkit.eval.aggregate import agg_rich, _group_slices  # noqa: E402
@@ -40,7 +44,7 @@ from sklearn.linear_model import LogisticRegression            # noqa: E402
 from sklearn.preprocessing import StandardScaler               # noqa: E402
 
 P = ROOT / "data" / "processed"
-OUT = ROOT / "experiments" / "kaggle_out"
+OUT = RUNS
 CELLS = json.loads((P / "splits_frozen.json").read_text())["cells"]
 shards = {c: WindowShard(P / f"{c}_ds.npz") for c in TASK_MATRIX}
 SUBJ = {c: np.asarray([str(x) for x in s.subjects]) for c, s in shards.items()}
@@ -93,7 +97,7 @@ def score(emb, level):
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", nargs="*", default=None)
-    ap.add_argument("--out", default=str(ROOT / "experiments" / "artifacts" / "fd7_scores.csv"))
+    ap.add_argument("--out", default=str(OUTDIR / "fd7_scores.csv"))
     a = ap.parse_args()
 
     runs = a.runs or sorted(d.name for d in OUT.iterdir() if d.is_dir())

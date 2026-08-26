@@ -11,7 +11,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -25,15 +30,15 @@ import numpy as np
 import torch
 
 warnings.filterwarnings("ignore")
-REF = str(ROOT / "external/glucoprism_v2_reference")
+REF = str(REFERENCE)
 sys.path.insert(0, REF)
 from glucofm.config import Config                       # noqa: E402
 from glucofm.model import GlucoFMEncoder                # noqa: E402
 from glucoprism.model import BlockedPool, PrismConfig   # noqa: E402
 
-PROC = ROOT / "data/processed"
-RUNS = ROOT / "experiments/kaggle_out"
-OUT = ROOT / "experiments/artifacts/v2emb"
+PROC = (ROOT / "data/processed")
+RUNS = (RUNS)
+OUT = (OUTDIR / "v2emb")
 COHORTS = ["cgmacros", "stanford", "hall", "shanghait2dm"]
 OUT.mkdir(parents=True, exist_ok=True)
 

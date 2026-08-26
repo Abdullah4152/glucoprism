@@ -18,7 +18,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -33,18 +38,17 @@ import numpy as np
 import pandas as pd
 
 warnings.filterwarnings("ignore")
-ROOT = ROOT
 sys.path.insert(0, str(ROOT / "src" / "core"))
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "src" / "scripts"))
 
-import run_eval as RE                                          # noqa: E402
+import evaluate_models as RE                                          # noqa: E402
 from cgmkit.data.datasets import WindowShard               # noqa: E402
 from cgmkit.eval.probe import _metrics, _align_proba       # noqa: E402
 from sklearn.linear_model import LogisticRegression            # noqa: E402
 from sklearn.preprocessing import StandardScaler               # noqa: E402
 
 P = ROOT / "data" / "processed"
-OUT = ROOT / "experiments" / "kaggle_out"
+OUT = RUNS
 COHORTS = ["cgmacros", "stanford", "hall"]
 TASKS = ["diabetes", "ir"]
 
@@ -79,13 +83,13 @@ def main() -> None:
                          "stack, whose package cannot be imported alongside ours.")
     ap.add_argument("--baselines", nargs="*", default=[],
                     help="zero-shot baselines, read from artifacts/baseline_emb/")
-    ap.add_argument("--out", default=str(ROOT / "experiments" / "artifacts" /
+    ap.add_argument("--out", default=str(OUTDIR /
                                          "fd3_cross_dataset.csv"))
     a = ap.parse_args()
 
     shards = {c: WindowShard(P / f"{c}_ds.npz") for c in COHORTS}
     subj = {c: np.asarray([str(x) for x in s.subjects]) for c, s in shards.items()}
-    EMB = ROOT / "experiments" / "artifacts" / "v2emb"
+    EMB = OUTDIR / "v2emb"
 
     jobs: list[tuple[str, dict]] = []
     for run in a.runs:
@@ -98,7 +102,7 @@ def main() -> None:
         kind = "prism" if ck.name == "prism.pt" else "glucofm"
         jobs.append((run, {c: RE.EMBEDDERS[kind][1](ck, s)
                            for c, s in shards.items()}))
-    BEMB = ROOT / "experiments" / "artifacts" / "baseline_emb"
+    BEMB = OUTDIR / "baseline_emb"
     for name in a.baselines:
         try:
             jobs.append((name, {c: np.load(BEMB / f"{name}__{c}.npy")

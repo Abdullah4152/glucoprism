@@ -12,10 +12,16 @@ from pathlib import Path
 COMMON = Path(__file__).resolve().parent.parent / "common"
 MODELS = ['chronos']
 
-for step, script in (("fetch", "fetch_checkpoints.py"),
-                     ("embed", "embed_zeroshot.py"),
-                     ("probe", "probe_zeroshot.py")):
-    cmd = [sys.executable, str(COMMON / script), "--models", *MODELS]
-    print(f"\n=== {step}: {' '.join(cmd[1:])}")
-    if subprocess.run(cmd).returncode:
-        sys.exit(f"{step} failed")
+
+def main() -> None:
+    for step, script in (("fetch", "fetch_checkpoints.py"),
+                         ("embed", "embed_zeroshot.py"),
+                         ("probe", "probe_zeroshot.py")):
+        cmd = [sys.executable, str(COMMON / script), "--models", *MODELS]
+        print(f"\n=== {step}: {' '.join(cmd[1:])}")
+        if subprocess.run(cmd).returncode:
+            sys.exit(f"{step} failed")
+
+
+if __name__ == "__main__":
+    main()

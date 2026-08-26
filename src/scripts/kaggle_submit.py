@@ -25,7 +25,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -38,8 +43,6 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
 KAGGLE_DIR = ROOT / ".kaggle"
 BUILD = ROOT / "kaggle"
 ARTIFACTS = ROOT / "artifacts" / "kaggle"
@@ -61,8 +64,8 @@ EPOCHS = {"glucofm": 120, "cgm_jepa": 101, "x_cgm_jepa": 101,
 
 # GlucoPRISM has its own entry point and its own flags, so the kernel dispatches
 # on the model rather than assuming `run_pretrain.py --model <name>`.
-TRAIN_SCRIPT = {m: "run_pretrain.py" for m in MODELS}
-TRAIN_SCRIPT["prism"] = "run_prism.py"
+TRAIN_SCRIPT = {m: "pretrain.py" for m in MODELS}
+TRAIN_SCRIPT["prism"] = "pretrain_proposal_variant.py"
 
 
 # --------------------------------------------------------------- credentials
@@ -141,14 +144,14 @@ def package(username: str) -> Path:
                     ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     # Must stay in step with the kernel template's copy loop: a script listed
     # there but missing here fails only once the kernel is already on a GPU.
-    for s in ["run_pretrain.py", "run_eval.py", "build_corpus.py",
-              "run_prism.py", "freeze_splits.py", "run_v2port.py",
-              "build_v2_corpus.py"]:
-        if (ROOT / "scripts" / s).exists():
-            shutil.copy(ROOT / "scripts" / s, out / "scripts" / s)
+    for s in ["pretrain.py", "evaluate_models.py", "build_corpus.py",
+              "pretrain_proposal_variant.py", "freeze_evaluation_folds.py", "pretrain_glucoprism.py",
+              "pack_corpus_for_trainer.py"]:
+        if (ROOT / "src" / "scripts" / s).exists():
+            shutil.copy(ROOT / "src" / "scripts" / s, out / "scripts" / s)
     # The v2 port runs the sibling repo's own trainer, so its source tree has to
     # travel with the payload. Weights are excluded -- we retrain, not reload.
-    ref = ROOT / "external" / "glucoprism_v2_reference"
+    ref = REFERENCE
     if ref.exists():
         shutil.copytree(ref, out / "reference",
                         ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "weights"))
@@ -238,19 +241,19 @@ if "{model}" == "v2port":
             shutil.copytree(REF, WORK / "external" / "glucoprism_v2_reference")
     except FileNotFoundError:
         print("reference/ not in payload -- repackage")
-    shutil.copy(SCRIPTS / "build_v2_corpus.py", WORK / "scripts" / "build_v2_corpus.py")
-    subprocess.run([sys.executable, str(WORK / "scripts" / "build_v2_corpus.py")],
+    shutil.copy(SCRIPTS / "pack_corpus_for_trainer.py", WORK / "scripts" / "pack_corpus_for_trainer.py")
+    subprocess.run([sys.executable, str(WORK / "scripts" / "pack_corpus_for_trainer.py")],
                    cwd=str(WORK))
-    cmd = [sys.executable, str(WORK / "scripts" / "run_v2port.py"),
+    cmd = [sys.executable, str(WORK / "scripts" / "pretrain_glucoprism.py"),
            "--epochs", "{epochs}", "--seed", "{seed}",
            "--out", str(WORK / "checkpoints")] + {extra_args}
 elif "{model}" == "prism":
-    cmd = [sys.executable, str(WORK / "scripts" / "run_prism.py"),
+    cmd = [sys.executable, str(WORK / "scripts" / "pretrain_proposal_variant.py"),
            "--epochs", "{epochs}", "--batch-size", "{batch_size}",
            "--seed", "{seed}", "--out", str(WORK / "checkpoints"),
            "--log-every", "5"] + {extra_args}
 else:
-    cmd = [sys.executable, str(WORK / "scripts" / "run_pretrain.py"),
+    cmd = [sys.executable, str(WORK / "scripts" / "pretrain.py"),
            "--model", "{model}", "--epochs", "{epochs}",
            "--batch-size", "{batch_size}", "--seed", "{seed}",
            "--out", str(WORK / "checkpoints"), "--log-every", "5",
@@ -266,7 +269,7 @@ print("pretrain exit", rc)
 if "{model}" == "v2port":
     print("eval skipped for v2port -- scored locally")
 else:
-    rc2 = subprocess.run([sys.executable, str(WORK / "scripts" / "run_eval.py"),
+    rc2 = subprocess.run([sys.executable, str(WORK / "scripts" / "evaluate_models.py"),
                           "--checkpoints", str(WORK / "checkpoints"),
                           "--models", "{model}",
                           "--out", str(WORK / "eval"), "--baselines"],

@@ -16,7 +16,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -29,8 +34,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-
-ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src" / "core"))
 
 from cgmkit.data.datasets import WindowShard  # noqa: E402
@@ -38,9 +41,9 @@ from cgmkit.data.gluformer_tokens import to_tokens  # noqa: E402
 from cgmkit.data.windows import densify  # noqa: E402
 from cgmkit.data.labels import TASK_MATRIX  # noqa: E402
 from cgmkit.eval.probe import glucofm_probe, holm_bonferroni, paired_wilcoxon  # noqa: E402
-from cgmkit.models.cgm_jepa import Encoder  # noqa: E402
+from common.models.cgm_jepa import Encoder  # noqa: E402
 from cgmkit.models.glucofm import GlucoFM, GlucoFMConfig  # noqa: E402
-from cgmkit.models.gluformer import GluFormer, GluFormerConfig  # noqa: E402
+from common.models.gluformer import GluFormer, GluFormerConfig  # noqa: E402
 
 from cgmkit.train.pretrain import get_device  # noqa: E402
 
@@ -132,7 +135,7 @@ def _make_prism_embedder(block: str):
 @torch.no_grad()
 def embed_cqp(ckpt: Path, shard: WindowShard, batch: int = 256) -> np.ndarray:
     """Clinical Query Pooling readout: the concatenated query codes (128-d)."""
-    from cgmkit.models.cqp import CQPConfig, GlucoCQP
+    from common.models.cqp import CQPConfig, GlucoCQP
     blob = torch.load(ckpt, map_location="cpu", weights_only=False)
     c = dict(blob["cfg"]); c["fm"] = GlucoFMConfig(**c["fm"])
     model = GlucoCQP(CQPConfig(**c)).to(DEVICE).eval()

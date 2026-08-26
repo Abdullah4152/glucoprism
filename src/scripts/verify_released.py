@@ -11,7 +11,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -27,15 +32,14 @@ warnings.filterwarnings("ignore")
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from load_released import load, embed                    # noqa: E402
-
-ROOT = ROOT
-RUNS = ROOT / "experiments" / "kaggle_out"
-EMB = ROOT / "experiments" / "artifacts" / "v2emb"
+RUNS = RUNS
+EMB = OUTDIR / "v2emb"
 COHORTS = ["cgmacros", "stanford", "hall", "shanghait2dm"]
 
 # released name -> the training run its embeddings were scored from
-SRC = {"glucoprism-c": ("C-v2-vib01", (0, 1, 2, 3, 4, 5)),
-       "glucoprism-e": ("E-v2-vib-simbias", (0, 1, 2))}
+SRC = {"glucoprism-c": ("C-v2-vib01", (5,)),
+       "glucoprism-e": ("E-v2-vib-simbias", (1,))}
+# One seed per model ships; weights/README.md records which, and why.
 
 fails = []
 print(f"{'model':<16}{'seed':>5}{'cohort':<14}{'max |diff|':>12}")

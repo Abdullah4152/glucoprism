@@ -32,7 +32,12 @@ from pathlib import Path as _P
 ROOT = _P(_os.environ.get("GLUCOPRISM_ROOT",
                           _P(__file__).resolve().parents[2]))
 OUTDIR = _P(_os.environ.get("GLUCOPRISM_OUT", ROOT / "artifacts"))
-for _p in (ROOT / "src" / "core", ROOT / "baselines"):
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
+EXTERNAL = _P(_os.environ.get("GLUCOPRISM_EXTERNAL", ROOT / "external"))
+REFERENCE = ROOT / "src" / "core" / "released_model"
+for _p in (ROOT / "src" / "core", ROOT / "baselines", ROOT / "src" / "scripts",
+           ROOT / "src" / "ablations", REFERENCE,
+           _P(__file__).resolve().parent):
     if str(_p) not in _sys.path:
         _sys.path.insert(0, str(_p))
 
@@ -46,15 +51,14 @@ import numpy as np
 import pandas as pd
 
 warnings.filterwarnings("ignore")
-ROOT = ROOT
 sys.path.insert(0, str(ROOT / "src" / "core"))
 from cgmkit.eval.probe import _metrics, _align_proba      # noqa: E402
 from sklearn.linear_model import LogisticRegression           # noqa: E402
 from sklearn.preprocessing import StandardScaler              # noqa: E402
 
 P = ROOT / "data" / "processed"
-EMB = ROOT / "experiments" / "artifacts" / "v2emb"
-A = ROOT / "experiments" / "artifacts"
+EMB = OUTDIR / "v2emb"
+A = OUTDIR
 COHORTS = ["cgmacros", "stanford", "hall"]
 TASKS = ["diabetes", "ir"]
 COLUMN = {("cgmacros", "diabetes"): "diabetes_3class"}
