@@ -40,9 +40,11 @@ from scipy.stats import wilcoxon
 
 A = (OUTDIR)
 OUT_J = A / "canonical.json"
-# Written under GLUCOPRISM_OUT; set GLUCOPRISM_TEX_OUT to also write into a
-# paper directory so its \newcommand macros stay in step. This used to hard-code
-# an absolute path on the authors' machine (see make_tables.py for the same fix).
+# Written to BOTH trees. Keeping only the final_materials copy meant the Overleaf
+# project silently kept a stale canonical.tex and every new macro compiled as an
+# undefined control sequence.
+# Same hard-coded Overleaf path as make_tables.py; see the note there. Writing
+# into the author's paper directory from a reproduction run is not acceptable.
 OUT_TS = [(OUTDIR / "tex/canonical.tex")]
 if _os.environ.get("GLUCOPRISM_TEX_OUT"):
     OUT_TS.append(Path(_os.environ["GLUCOPRISM_TEX_OUT"]) / "canonical.tex")
@@ -220,10 +222,34 @@ if CF.exists():
     C["ixn"] = f"{cf['inter']:+.2f}"
     C["ixnp"] = round(cf["p_inter"], 4)
     C["ixnn"] = cf["n"]
+    C["ixnpos"] = cf["pos_inter"]
     C["objalone"] = f"{cf['obj_novib']:+.2f}"
     C["objgivenvib"] = f"{cf['obj_vib']:+.2f}"
     C["vibalone"] = f"{cf['vib_noobj']:+.2f}"
     C["vibgivenobj"] = f"{cf['vib_obj']:+.2f}"
+    # Every effect carries its own p and win count. The paper previously wrote
+    # these four p-values as literals in the prose, and they drifted out of step
+    # with the effects they belong to; as macros they cannot.
+    C["objalonep"] = round(cf["p_obj_novib"], 3)
+    C["objgivenvibp"] = round(cf["p_obj_vib"], 4)
+    C["vibalonep"] = round(cf["p_vib_noobj"], 3)
+    C["vibgivenobjp"] = round(cf["p_vib_obj"], 4)
+    C["objalonepos"] = cf["pos_obj_novib"]
+    C["vibalonepos"] = cf["pos_vib_noobj"]
+    C["objgivenvibpos"] = cf["pos_obj_vib"]
+    C["vibgivenobjpos"] = cf["pos_vib_obj"]
+    # The diagonal of the same square: both components against neither.
+    C["bothpair"] = f"{cf['both']:+.2f}"
+    C["bothpairp"] = round(cf["p_both"], 4)
+    C["bothpairpos"] = cf["pos_both"]
+    # ... and the same diagonal on the readout the released models actually use.
+    cz = json.loads(CF.read_text()).get("zTzS")
+    if cz:
+        C["ixnz"] = f"{cz['inter']:+.2f}"
+        C["ixnzp"] = round(cz["p_inter"], 3)
+        C["bothpairz"] = f"{cz['both']:+.2f}"
+        C["bothpairzp"] = round(cz["p_both"], 3)
+        C["bothpairzpos"] = cz["pos_both"]
 
     cfs = pd.read_csv(A / "confound_scores.csv")
     cfs["arm"] = cfs.run.str.replace(r"-s\d$", "", regex=True)

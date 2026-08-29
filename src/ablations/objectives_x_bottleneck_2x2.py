@@ -86,11 +86,18 @@ def show(title: str, block: str, level: str = "window") -> dict:
     simple_vib_obj = a[("on", "on")] - a[("on", "off")]
     inter = simple_vib_obj - simple_vib_noobj
 
+    # The fourth contrast of the same square: both components against neither.
+    # It is the diagonal, not a new experiment, and it is the one a reader most
+    # wants -- what the pair is worth relative to running neither.
+    both_vs_neither = a[("on", "on")] - a[("off", "off")]
+
+    out = {"n": n}
     print(f"\n  simple effects over n={n} cells (paired):")
-    for nm, v in [("objectives | no VIB ", simple_obj_novib),
-                  ("objectives | VIB    ", simple_obj_vib),
-                  ("VIB | no objectives ", simple_vib_noobj),
-                  ("VIB | objectives    ", simple_vib_obj)]:
+    for nm, key, v in [("objectives | no VIB ", "obj_novib", simple_obj_novib),
+                       ("objectives | VIB    ", "obj_vib", simple_obj_vib),
+                       ("VIB | no objectives ", "vib_noobj", simple_vib_noobj),
+                       ("VIB | objectives    ", "vib_obj", simple_vib_obj),
+                       ("both vs neither     ", "both", both_vs_neither)]:
         t, p = ttest_rel(v, np.zeros_like(v))
         try:
             pw = wilcoxon(v)[1]
@@ -98,6 +105,11 @@ def show(title: str, block: str, level: str = "window") -> dict:
             pw = 1.0
         print(f"    {nm} {v.mean():+6.2f}   t={t:+6.2f}  p={p:.4f}  "
               f"wilcoxon={pw:.4f}  won {int((v > 0).sum())}/{n}")
+        # p-values are carried alongside the effects rather than left to be
+        # transcribed by hand: the paper quoted four of them as literals and
+        # they drifted out of step with the effects they belong to.
+        out |= {key: float(v.mean()), f"p_{key}": float(p),
+                f"pos_{key}": int((v > 0).sum())}
 
     t, p = ttest_rel(inter, np.zeros_like(inter))
     print(f"\n    INTERACTION        {inter.mean():+6.2f}   t={t:+6.2f}  "
@@ -106,12 +118,11 @@ def show(title: str, block: str, level: str = "window") -> dict:
     main_vib = 0.5 * (simple_vib_noobj + simple_vib_obj)
     print(f"    main effect objectives {main_obj.mean():+6.2f}")
     print(f"    main effect VIB        {main_vib.mean():+6.2f}")
-    return {"n": n, "inter": float(inter.mean()), "p_inter": float(p),
-            "obj_novib": float(simple_obj_novib.mean()),
-            "obj_vib": float(simple_obj_vib.mean()),
-            "vib_noobj": float(simple_vib_noobj.mean()),
-            "vib_obj": float(simple_vib_obj.mean()),
-            "main_obj": float(main_obj.mean()), "main_vib": float(main_vib.mean())}
+    out |= {"inter": float(inter.mean()), "p_inter": float(p),
+            "pos_inter": int((inter > 0).sum()),
+            "main_obj": float(main_obj.mean()),
+            "main_vib": float(main_vib.mean())}
+    return out
 
 
 out = {}

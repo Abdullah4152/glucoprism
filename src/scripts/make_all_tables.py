@@ -1017,12 +1017,21 @@ if CFJ.exists():
         r"corpus, backbone, probe and frozen folds, seed-matched at three seeds. "
         r"Rows are the protocol factorization objectives; columns are the "
         r"variational bottleneck on the Sensor block. Each margin reports the "
+        # Every p and win count is read from the analysis rather than written as
+        # a literal. Four of them used to be literals here and drifted out of
+        # step with the effects they belong to.
         r"paired per-cell simple effect. Alone, the objectives are worth "
-        rf"${cf['obj_novib']:+.2f}$ ($p=0.84$) and the bottleneck "
-        rf"${cf['vib_noobj']:+.2f}$ ($p=0.82$); in each other's presence they "
+        rf"${cf['obj_novib']:+.2f}$ ($p={cf['p_obj_novib']:.2f}$, "
+        rf"{cf['pos_obj_novib']} of {cf['n']} cells) and the bottleneck "
+        rf"${cf['vib_noobj']:+.2f}$ ($p={cf['p_vib_noobj']:.2f}$, "
+        rf"{cf['pos_vib_noobj']} of {cf['n']}); in each other's presence they "
         rf"are worth ${cf['obj_vib']:+.2f}$ and ${cf['vib_obj']:+.2f}$ "
-        rf"($p=0.023$, $p=0.021$). The interaction is ${cf['inter']:+.2f}$ "
-        rf"($p={cf['p_inter']:.3f}$, positive in 11 of {cf['n']} cells).",
+        rf"($p={cf['p_obj_vib']:.4f}$, $p={cf['p_vib_obj']:.4f}$, both "
+        rf"{cf['pos_obj_vib']} of {cf['n']}). Running both against neither is "
+        rf"worth ${cf['both']:+.2f}$ ($p={cf['p_both']:.4f}$, "
+        rf"{cf['pos_both']} of {cf['n']}); the interaction contrast itself is "
+        rf"${cf['inter']:+.2f}$ ($p={cf['p_inter']:.3f}$, "
+        rf"{cf['pos_inter']} of {cf['n']}).",
         "tab:interaction",
         r"Protocol objectives & VIB off & VIB on & simple effect of VIB \\",
         rows,
@@ -1030,8 +1039,8 @@ if CFJ.exists():
              r"this paper previously had to flag: it runs the auxiliary "
              r"training stack (global normalisation, statistical pooling, the "
              r"consistency term, the variance floor) with the factorization "
-             r"switched off. At 65.63 against GlucoFM's 65.85 it contributes "
-             r"nothing on its own."))
+             rf"switched off. At {g['offoff']:.2f} against GlucoFM's "
+             rf"{CANON['lad_fmbase']} it contributes nothing on its own."))
 
 # ================================================================== tbl_arch
 fd8 = pd.read_csv(A / "fd8_scores.csv")
