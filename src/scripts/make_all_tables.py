@@ -66,21 +66,41 @@ _SKIP = ("\\multicolumn", "\\midrule", "\\toprule", "\\bottomrule",
 _NUM = re.compile(r"^[-+]?\d+(?:\.\d+)?$")
 
 
+# A cell may carry a seed spread: "68.0\,{\scriptsize$\pm$}{\scriptsize 0.2}".
+# Only the mean competes for bolding, and only the mean gets bolded.
+_PM = re.compile(r"^(?P<mean>.*?)\s*(?:\\,)?\{\\scriptsize\$\\pm\$\}.*$", re.S)
+
+
+def _split_pm(cell: str) -> tuple[str, str]:
+    """(mean part, spread part) of a cell, or (cell, '') if it carries none."""
+    m = _PM.match(cell.strip())
+    if not m:
+        return cell, ""
+    mean = m.group("mean")
+    return mean, cell.strip()[len(mean):]
+
+
 def _emph(cell: str) -> str:
     """Bold a cell, staying inside math mode where the cell already is one.
 
     `\\textbf{$+0.77$}` does not reliably bold digits in math; `$\\mathbf{+0.77}$`
-    does, and keeps the sign in the same font as the number.
+    does, and keeps the sign in the same font as the number. Where the cell
+    carries a seed spread, only the mean is bolded -- bolding the spread too
+    would read as though the spread were the quantity being compared.
     """
-    s = cell.strip().replace(r"\bfseries", "").strip()
+    mean, spread = _split_pm(cell)
+    s = mean.strip().replace(r"\bfseries", "").strip()
     if s.startswith("$") and s.endswith("$"):
-        return r" $\mathbf{" + s[1:-1] + "}$ "
-    return r" \textbf{" + s + "} "
+        out = r" $\mathbf{" + s[1:-1] + "}$ "
+    else:
+        out = r" \textbf{" + s + "} "
+    return out.rstrip() + spread + " " if spread else out
 
 
 def _val(cell: str) -> float | None:
     """The number in a cell, ignoring whatever markup is wrapped around it."""
-    s = cell.strip()
+    s, _ = _split_pm(cell)
+    s = s.strip()
     for m in (r"\textbf{", r"\underline{", r"\emph{", r"\mathbf{"):
         if s.startswith(m) and s.endswith("}"):
             s = s[len(m):-1].strip()
@@ -174,9 +194,17 @@ def tab(cols: str, caption: str, label: str, header: str, rows: list[str],
     # typefaces. One size for all; only the column padding varies, which changes
     # spacing rather than glyph size.
     size = r"\footnotesize"
-    pad = (r"\setlength{\tabcolsep}{5pt}" if sideways else
-           (r"\setlength{\tabcolsep}{2.6pt}" if wide else
-            r"\setlength{\tabcolsep}{5pt}"))
+    # A cell carrying its seed spread is roughly twice as wide as a bare one,
+    # so the padding gives ground rather than the text block: at 5pt these run
+    # a few points into the margin. Spacing changes, glyph size does not.
+    has_pm = any(r"{\scriptsize$\pm$}" in r for r in rows)
+    if sideways:
+        cs = "5pt"
+    elif wide:
+        cs = "2.0pt" if has_pm else "2.6pt"
+    else:
+        cs = "3.4pt" if has_pm else "5pt"
+    pad = rf"\setlength{{\tabcolsep}}{{{cs}}}"
     env = "sidewaystable" if sideways else "table"
     open_box = close_box = ""
     if long:
@@ -319,7 +347,32 @@ SDV = pd.read_csv(A / "seed_variability.csv")
 # The headline mean for C is over the three shared seeds, so its spread has to
 # come from the same three -- not from all six C happens to have.
 SDNAME = {GPC: "GlucoPRISM-C [seed-matched]", GPE: "GlucoPRISM-E",
-          FM: "GlucoFM (ours)"}
+          FM: "GlucoFM (ours)",
+          "CGM-JEPA": "CGM-JEPA", "X-CGM-JEPA": "X-CGM-JEPA",
+          "GluFormer-tiny": "GluFormer-tiny"}
+
+
+def pm(mean: float, sd: float | None, fmt: str = "{:.1f}",
+       bold: bool = False, math: bool = False) -> str:
+    """A cell as mean with its seed spread, or the mean alone where none exists.
+
+    Applied to every numeric cell of a table or to none of it. An earlier
+    version appended the spread to two of eight columns, which left those two
+    twice as wide as the rest and set in a second size; that is why it was
+    dropped. Uniform application keeps the column widths even.
+
+    `math` wraps the mean in `$...$` for signed differences, where the sign
+    otherwise sets as a hyphen at text width.
+    """
+    m = fmt.format(mean)
+    if math:
+        m = f"${m}$"
+    m = rf"\textbf{{{m}}}" if bold else m
+    if sd is None or not np.isfinite(sd):
+        return m
+    # A spread is unsigned, so a signed format must not carry over to it.
+    sdfmt = fmt.replace("+", "")
+    return m + rf"\,{{\scriptsize$\pm$}}{{\scriptsize {sdfmt.format(abs(sd))}}}"
 
 
 def seed_sd(run: str, level: str, metric: str = "auc") -> float | None:
@@ -343,10 +396,10 @@ def seed_sd(run: str, level: str, metric: str = "auc") -> float | None:
 def summary_row(nm: str, run: str) -> str:
     """One row of the task-averaged table.
 
-    Seed spreads used to be appended to the ROC cells as `+/- s.d.`, which made
-    two of eight columns twice as wide as the rest and set them in a second
-    size. The spread is now reported on its own axis in the seed-variability
-    figure, where every arm and all three levels fit.
+    Seed spreads are deliberately not carried here. Appending them to six
+    numeric columns doubles the width of every cell and sets it in a second
+    size; the headline grid stays readable with the means alone and the
+    spreads get their own axis in the seed-variability figure.
     """
     cells = []
     for lvl in ("window", "subject"):
@@ -417,7 +470,8 @@ def jepa_master_row(key: str, label: str, subj, transfer) -> str:
     ph = sigmap.get(label)
     pc = ("---" if ph is None else
           (rf"\textbf{{{ph:.3f}}}" if ph < 0.05 else f"{ph:.3f}"))
-    return (f"{label} & {w.PR:.1f} & {w.AUC:.1f} & {w.F1:.1f} & "
+    win = " & ".join(f"{w[k]:.1f}" for k in ("PR", "AUC", "F1"))
+    return (f"{label} & {win} & "
             + " & ".join(f"{v:.1f}" for v in subj)
             + f" & {transfer:.1f} & {pc}" + r" \\")
 
@@ -440,6 +494,16 @@ _tr = pd.concat([pd.read_csv(A / f) for f in
 _tr = _tr.drop_duplicates(subset=["run", "src", "tgt", "task"])
 _tr["arm"] = _tr.run.str.replace(r"-s\d(:|$)", r"\1", regex=True)
 _trm = _tr.groupby("arm").auc.mean()
+# Transfer seed spread: average the 12 directions within a seed, then vary the
+# seed. Arms with a single run (the zero-shot checkpoints) get no spread.
+_tr["seed"] = _tr.run.str.extract(r"-s(\d)(?::|$)")
+_trsd = {}
+for _arm, _g in _tr.groupby("arm"):
+    if _g.seed.notna().sum() == 0:
+        continue
+    _per = _g.dropna(subset=["seed"]).groupby("seed").auc.mean()
+    if len(_per) > 1:
+        _trsd[_arm] = float(_per.std(ddof=1))
 
 
 def master_row(nm: str, run: str) -> str:
@@ -696,9 +760,13 @@ if CS.exists():
             key = str(int(r["width"])) if by == "width" else f"{r['b']:g}"
             star = r"\,\textbf{(released)}" if r["is_rel"] else ""
             # r.drop would resolve to DataFrame.drop, not the column.
-            rows.append(f"\\quad {key}{star} & {r['full']:.2f} & "
-                        f"{r['drop']:.2f} & ${r['gain']:+.2f}$ & "
-                        f"${r['subj_gain']:+.2f}$ \\\\")
+            rows.append(
+                f"\\quad {key}{star} & "
+                f"{pm(r['full'], r.get('full_sd'), '{:.2f}')} & "
+                f"{pm(r['drop'], r.get('drop_sd'), '{:.2f}')} & "
+                f"{pm(r['gain'], r.get('gain_sd'), '{:+.2f}', math=True)} & "
+                f"{pm(r['subj_gain'], r.get('subj_gain_sd'), '{:+.2f}', math=True)}"
+                f" \\\\")
         rows.append(r"\addlinespace")
     write("tbl_capacity", tab(
         "lrrrr",
@@ -761,7 +829,12 @@ if GR.exists():
 if (A / "rev_inlp_calibration.csv").exists():
     e = pd.read_csv(A / "rev_inlp_calibration.csv")
     ge = e.groupby("tag")[["auc", "ece", "brier"]].mean()
+    # Per-seed means, so the reported spread is seed-to-seed rather than the
+    # much larger cell-to-cell spread across transfer directions.
+    es = e.groupby(["tag", "seed"])[["auc", "ece", "brier"]].mean()
+    esd = es.groupby("tag").std(ddof=1)
     base = ge.loc["full (128d)", "auc"]
+    bseed = es.xs("full (128d)").auc
     rows = []
     for t, lbl in [("full (128d)", "Full readout, no surgery"),
                    ("INLP on full (128d)",
@@ -771,9 +844,15 @@ if (A / "rev_inlp_calibration.csv").exists():
         if t not in ge.index:
             continue
         d_ = ge.loc[t, "auc"] - base
-        rows.append(f"{lbl} & {ge.loc[t, 'auc']:.2f} & "
-                    f"{'---' if abs(d_) < 1e-9 else f'${d_:+.2f}$'} & "
-                    f"{ge.loc[t, 'ece']:.3f} & {ge.loc[t, 'brier']:.3f} \\\\")
+        # Delta is paired within seed; propagating the two column SDs would
+        # overstate it.
+        dsd = (es.xs(t).auc - bseed).std(ddof=1)
+        dcell = ("---" if abs(d_) < 1e-9
+                 else pm(d_, dsd, "{:+.2f}", math=True))
+        rows.append(f"{lbl} & {pm(ge.loc[t, 'auc'], esd.loc[t, 'auc'], '{:.2f}')} & "
+                    f"{dcell} & "
+                    f"{pm(ge.loc[t, 'ece'], esd.loc[t, 'ece'], '{:.3f}')} & "
+                    f"{pm(ge.loc[t, 'brier'], esd.loc[t, 'brier'], '{:.3f}')} \\\\")
     write("tbl_erasure", tab(
         "lrrrr",
         r"Post-hoc erasure as an alternative route to addressability. INLP fits "
@@ -805,6 +884,10 @@ if (A / "rev_partial_within.csv").exists():
     _sd = _sd[_sd.tag.str.startswith("keep ")].copy()
     _sd["m"] = _sd.tag.str.extract(r"keep (\d+)/")[0].astype(int)
     softg = _sd.groupby("m")[["auc", "ece", "brier"]].mean()
+    # Per-seed means first, so the spread is seed-to-seed and not the wider
+    # spread across the transfer directions being averaged.
+    softsd = (_sd.groupby(["m", "seed"])[["auc", "ece", "brier"]].mean()
+              .groupby("m").std(ddof=1))
     tr = pd.read_csv(A / "rev_soft_deletion.csv").groupby("tag").auc.mean()
     kw = pd.read_csv(A / "rev_partial_within.csv")
     kw["seed"] = kw.run.str.extract(r"-s(\d)$")[0].astype(int)
@@ -814,10 +897,13 @@ if (A / "rev_partial_within.csv").exists():
     allb["arm"] = allb.run.str.replace(r"-s\d$", "", regex=True)
     allb = allb[(allb.arm == "C-v2-vib01") & (allb.seed <= 2)]
 
-    def wc(b: str, lvl: str) -> float:
+    def wc(b: str, lvl: str) -> tuple[float, float]:
+        """Cell-averaged score and its seed-to-seed spread."""
         s = allb[(allb.block == b) & (allb.level == lvl)]
-        return (s.groupby(["cohort", "task"]).auc.mean().mean() if len(s)
-                else float("nan"))
+        if not len(s):
+            return float("nan"), float("nan")
+        per = s.groupby(["seed", "cohort", "task"]).auc.mean().groupby("seed").mean()
+        return per.mean(), (per.std(ddof=1) if per.size > 1 else float("nan"))
 
     rows = []
     for b, m_, lbl in [("full", 16, "keep all 16 (full readout)"),
@@ -826,11 +912,12 @@ if (A / "rev_partial_within.csv").exists():
                        ("keep4", 4, "keep 4 of 16"),
                        ("keep2", 2, "keep 2 of 16"),
                        ("zTzS", 0, r"\textbf{keep 0 of 16 (ours)}")]:
-        g = softg.loc[m_]
-        w = f"{wc(b, 'window'):.2f}" if b else "---"
-        s = f"{wc(b, 'subject'):.2f}" if b else "---"
-        rows.append(f"{lbl} & {g.auc:.2f} & {g.ece:.3f} & {g.brier:.3f} & "
-                    f"{w} & {s} \\\\")
+        g, gs = softg.loc[m_], softsd.loc[m_]
+        w = pm(*wc(b, "window"), "{:.2f}") if b else "---"
+        s = pm(*wc(b, "subject"), "{:.2f}") if b else "---"
+        rows.append(f"{lbl} & {pm(g.auc, gs.auc, '{:.2f}')} & "
+                    f"{pm(g.ece, gs.ece, '{:.3f}')} & "
+                    f"{pm(g.brier, gs.brier, '{:.3f}')} & {w} & {s} \\\\")
     write("tbl_partial", tab(
         "lrrrrr",
         r"Is there a useful \emph{partial} deletion? Dimensions of $z_A$ are "
@@ -1109,15 +1196,20 @@ VAR = [("full(128)", "Full readout", 128), ("zT(64)", r"$z_T$ (Trait)", 64),
        ("pca64", "PCA projection", 64), ("zS(48)", r"$z_S$ (State)", 48),
        ("rand48", "Random projection", 48), ("pca48", "PCA projection", 48),
        ("zA(16)", r"$z_A$ (Sensor)", 16)]
-m = bc.groupby("variant").auc.agg(["mean", "std"])
+# The column is a SEED spread, so it has to be taken over per-seed means. A
+# plain std over the raw rows is the spread across transfer directions, which
+# is several times larger and is not what the header claims.
+m = bc.groupby(["variant", "seed"]).auc.mean().groupby("variant").agg(
+    ["mean", "std", "count"])
 rows = []
 for v, lbl, dim in VAR:
     if v not in m.index:
         continue
     bold = v.startswith("z")
     nm = rf"\textbf{{{lbl}}}" if bold else rf"\quad {lbl}"
+    sd = m.loc[v, "std"] if m.loc[v, "count"] > 1 else float("nan")
     rows.append(f"{nm} & {dim} & {m.loc[v, 'mean']:.2f} & "
-                f"{m.loc[v, 'std']:.2f} \\\\")
+                + (f"{sd:.2f}" if np.isfinite(sd) else "---") + r" \\")
     if v in ("full(128)", "pca64", "pca48"):
         rows.append(r"\addlinespace")
 write("tbl_controls", tab(
@@ -1672,12 +1764,22 @@ REPRO_NAME = {"glucofm": r"GlucoFM~\citep{li2026glucofm}",
 REPRO_PAR = {"glucofm": "0.72", "gluformer_tiny": "0.65",
              "cgm_jepa": "0.52", "x_cgm_jepa": "0.52", "raw": "---",
              "mask_only": "---"}
+# The Reproduced group carries its seed spread; the Published group cannot,
+# because GlucoFM's Table 3 reports point values only. `raw` and `mask_only`
+# train nothing, so they have no pretraining seed to vary.
+REPRO_SD = {"glucofm": "GlucoFM (ours)", "gluformer_tiny": "GluFormer-tiny",
+            "cgm_jepa": "CGM-JEPA", "x_cgm_jepa": "X-CGM-JEPA",
+            "raw": None, "mask_only": None}
 rows, REPRO = [], {}
 for k in ["glucofm", "gluformer_tiny", "cgm_jepa", "x_cgm_jepa", "raw",
           "mask_only"]:
     s = RM[RM.model == k]
     o = s[["PR", "AUC", "F1"]].mean()
     REPRO[k] = (o.PR, o.AUC, o.F1)
+    _sdrow = SDV[(SDV.model == REPRO_SD[k]) & (SDV.level == "window")] \
+        if REPRO_SD[k] else SDV.iloc[:0]
+    _rsd = {m: (float(_sdrow.iloc[0][f"{m}_sd_taskavg"]) if len(_sdrow) else None)
+            for m in ("pr", "auc", "f1")}
     if s.AUC_paper.notna().any():
         p = s[["PR_paper", "AUC_paper"]].mean()
         d = s.adauc
@@ -1687,8 +1789,9 @@ for k in ["glucofm", "gluformer_tiny", "cgm_jepa", "x_cgm_jepa", "raw",
     else:
         pub = r"--- & --- & --- & ---"
     bf = r"\textbf{%s}" if k == "glucofm" else "%s"
-    rows.append(f"{bf % REPRO_NAME[k]} & {REPRO_PAR[k]} & {o.PR:.1f} & "
-                f"{o.AUC:.1f} & {o.F1:.1f} & {pub} \\\\")
+    rows.append(f"{bf % REPRO_NAME[k]} & {REPRO_PAR[k]} & "
+                f"{pm(o.PR, _rsd['pr'])} & {pm(o.AUC, _rsd['auc'])} & "
+                f"{pm(o.F1, _rsd['f1'])} & {pub} \\\\")
     if k == "x_cgm_jepa":
         rows.append(r"\addlinespace")
 
