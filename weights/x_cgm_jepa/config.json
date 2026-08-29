@@ -1,0 +1,21 @@
+{
+  "cfg": {
+    "patch_size": 12,
+    "encoder_kernel_size": 3,
+    "encoder_embed_dim": 96,
+    "encoder_embed_bias": true,
+    "encoder_nhead": 6,
+    "encoder_num_layers": 3,
+    "encoder_dropout": 0.0,
+    "predictor_embed": 48,
+    "predictor_nhead": 2,
+    "predictor_num_layers": 1,
+    "time_inp_dim": 5,
+    "gluco_gridsize": 32,
+    "gluco_spatial_patch_size": 8
+  },
+  "epochs": 101,
+  "seed": 1,
+  "mask_ratio": 0.25,
+  "gluco_loss_weight": 1.0
+}

@@ -4,10 +4,17 @@ We cannot redistribute the raw cohorts. All nine are public, but each has its
 own access step. This folder holds what we can ship.
 
 ```
-splits_frozen.json     the subject-to-fold assignment behind every number
-corpus_report.json     what the built corpus should contain, for verification
-pretrain_holdout.json  subjects held out of pretraining for hyperparameter work
+processed/splits_frozen.json     the subject-to-fold assignment behind every number
+processed/pretrain_holdout.json  subjects held out of pretraining for hyperparameter work
+corpus_report.json               what the built corpus should contain, for verification
+published_percell.csv            per-cell values each baseline's own paper reports
+reference_embeddings.json        signature the released weights must reproduce
 ```
+
+The two `processed/` files live there because that is where every consumer reads
+them (`probe_frozen_folds.py`, `probe_pretrained_models.py`, `probe_zeroshot.py`,
+`evaluate_models.py`, `finetune_end_to_end.py`, `posthoc_factorization_fit.py`,
+`fewshot_multiday_and_stability.py`). The build writes its shards alongside them.
 
 ## The frozen folds
 
@@ -52,7 +59,7 @@ corpus.
 ```bash
 python ../src/scripts/download_datasets.py --help
 python ../src/scripts/profile_datasets.py     # verify device, rate, coverage
-python ../src/scripts/build_corpus.py --day-overlap 40
+python ../src/scripts/build_corpus.py --all --day-overlap 0.4 --out-suffix _ov40
 python ../src/scripts/corpus_summary.py       # compare against corpus_report.json
 ```
 

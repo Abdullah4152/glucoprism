@@ -49,7 +49,9 @@ import numpy as np
 import torch
 
 warnings.filterwarnings("ignore")
-os.environ.setdefault("HF_HOME", r"D:\hf_cache")
+# HF_HOME is left to the environment; the released copy hard-coded a path
+# that exists only on the authors machine.
+os.environ.setdefault("HF_HOME", str(Path.home() / ".cache" / "huggingface"))
 sys.path.insert(0, str(ROOT / "src" / "core"))
 from cgmkit.data.datasets import WindowShard          # noqa: E402
 from cgmkit.data.labels import TASK_MATRIX            # noqa: E402

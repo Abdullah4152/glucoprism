@@ -38,7 +38,11 @@ from safetensors.torch import save_file
 
 SRC = ROOT
 OUT = (OUTDIR / "weights")
-RUNS = SRC / "experiments" / "kaggle_out"
+# Training runs live under GLUCOPRISM_RUNS (artifacts/runs by default), which is
+# what every other script uses. The released copy pointed at
+# `experiments/kaggle_out`, a directory the release layout does not have, so
+# this reported "NO CHECKPOINTS FOUND" for every model.
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
 OUT.mkdir(parents=True, exist_ok=True)
 
 # ours + the proposal. Baselines are handled separately: they are third-party
@@ -120,7 +124,9 @@ print("\n=== zero-shot baselines ===")
 # do not (CGMformer's .bin, and any .bin-only MOMENT mirror) are converted so
 # the whole release is uniform and pickle-free.
 import os
-os.environ.setdefault("HF_HOME", r"D:\hf_cache")
+# HF_HOME is left to the environment; the released copy hard-coded a path
+# that exists only on the authors machine.
+os.environ.setdefault("HF_HOME", str(Path.home() / ".cache" / "huggingface"))
 BASE_OUT = (OUTDIR / "weights/baselines")
 BASE_OUT.mkdir(parents=True, exist_ok=True)
 

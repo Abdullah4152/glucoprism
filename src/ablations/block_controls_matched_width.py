@@ -76,74 +76,88 @@ def transfer(getX, src, tgt, task):
     return 100 * auc
 
 
-recs = []
-for seed in (0, 1, 2):
-    full = {c: np.load(EMB / f"v2r-s{seed}__{c}__full.npy") for c in COHORTS}
-    blocks = {b: {c: np.load(EMB / f"v2r-s{seed}__{c}__{b}.npy") for c in COHORTS}
-              for b in ("zT", "zS", "zA")}
-    D = full[COHORTS[0]].shape[1]
+def main() -> int:
+    """Everything below used to run at import time.
 
-    variants: dict[str, object] = {
-        "full(128)": lambda c, k, f=full: f[c][k],
-        "zT(64)": lambda c, k, b=blocks: b["zT"][c][k],
-        "zS(48)": lambda c, k, b=blocks: b["zS"][c][k],
-        "zA(16)": lambda c, k, b=blocks: b["zA"][c][k],
-    }
-    for width in (64, 48):
-        rng = np.random.default_rng(1000 + seed * 10 + width)
-        R = rng.normal(size=(D, width)) / np.sqrt(D)
-        variants[f"rand{width}"] = (
-            lambda c, k, f=full, R=R: f[c][k] @ R)
-        variants[f"slice{width}"] = (
-            lambda c, k, f=full, w=width: f[c][k][:, :w])
+    `sensor_block_deletion.py` imports `transfer` and `subj` from this
+    module, so importing it fired the whole sweep -- and failed outright
+    when the v2r embeddings were absent, taking an unrelated script down
+    with it.
+    """
+    recs = []
+    for seed in (0, 1, 2):
+        full = {c: np.load(EMB / f"v2r-s{seed}__{c}__full.npy") for c in COHORTS}
+        blocks = {b: {c: np.load(EMB / f"v2r-s{seed}__{c}__{b}.npy") for c in COHORTS}
+                  for b in ("zT", "zS", "zA")}
+        D = full[COHORTS[0]].shape[1]
 
-    for name, fn in variants.items():
-        for src, tgt in itertools.permutations(COHORTS, 2):
-            for task in TASKS:
-                a = transfer(fn, src, tgt, task)
-                if a is not None:
-                    recs.append(dict(seed=seed, variant=name, src=src,
-                                     tgt=tgt, task=task, auc=a))
+        variants: dict[str, object] = {
+            "full(128)": lambda c, k, f=full: f[c][k],
+            "zT(64)": lambda c, k, b=blocks: b["zT"][c][k],
+            "zS(48)": lambda c, k, b=blocks: b["zS"][c][k],
+            "zA(16)": lambda c, k, b=blocks: b["zA"][c][k],
+        }
+        for width in (64, 48):
+            rng = np.random.default_rng(1000 + seed * 10 + width)
+            R = rng.normal(size=(D, width)) / np.sqrt(D)
+            variants[f"rand{width}"] = (
+                lambda c, k, f=full, R=R: f[c][k] @ R)
+            variants[f"slice{width}"] = (
+                lambda c, k, f=full, w=width: f[c][k][:, :w])
 
-    # PCA must be fitted on the SOURCE only -- fitting on both would leak the
-    # target distribution into the representation.
-    for width in (64, 48):
-        for src, tgt in itertools.permutations(COHORTS, 2):
-            pca = PCA(n_components=width, random_state=0).fit(full[src])
-            fn = lambda c, k, p=pca, f=full: p.transform(f[c][k])
-            for task in TASKS:
-                a = transfer(fn, src, tgt, task)
-                if a is not None:
-                    recs.append(dict(seed=seed, variant=f"pca{width}", src=src,
-                                     tgt=tgt, task=task, auc=a))
+        for name, fn in variants.items():
+            for src, tgt in itertools.permutations(COHORTS, 2):
+                for task in TASKS:
+                    a = transfer(fn, src, tgt, task)
+                    if a is not None:
+                        recs.append(dict(seed=seed, variant=name, src=src,
+                                         tgt=tgt, task=task, auc=a))
 
-df = pd.DataFrame(recs)
-df.to_csv(OUTDIR / "fd3_block_controls.csv", index=False)
+        # PCA must be fitted on the SOURCE only -- fitting on both would leak the
+        # target distribution into the representation.
+        for width in (64, 48):
+            for src, tgt in itertools.permutations(COHORTS, 2):
+                pca = PCA(n_components=width, random_state=0).fit(full[src])
+                fn = lambda c, k, p=pca, f=full: p.transform(f[c][k])
+                for task in TASKS:
+                    a = transfer(fn, src, tgt, task)
+                    if a is not None:
+                        recs.append(dict(seed=seed, variant=f"pca{width}", src=src,
+                                         tgt=tgt, task=task, auc=a))
 
-base = df[df.variant == "full(128)"].groupby(["seed", "src", "tgt", "task"]).auc.mean()
-order = ["zT(64)", "rand64", "slice64", "pca64",
-         "zS(48)", "rand48", "slice48", "pca48", "zA(16)"]
-print(f"{'variant':<12}{'mean AUC':>10}{'vs full':>9}{'t':>7}  better in")
-print("-" * 52)
-print(f"{'full(128)':<12}{base.mean():>10.2f}{'--':>9}{'':>7}")
-for v in order:
-    m = df[df.variant == v].groupby(["seed", "src", "tgt", "task"]).auc.mean()
-    d = (m - base).dropna()
-    t = d.mean() / (d.std(ddof=1) / np.sqrt(len(d)))
-    print(f"{v:<12}{m.mean():>10.2f}{d.mean():>+9.2f}{t:>7.2f}  {int((d>0).sum())}/{len(d)}")
+    df = pd.DataFrame(recs)
+    df.to_csv(OUTDIR / "fd3_block_controls.csv", index=False)
 
-print("\n--- the question: does zT beat its OWN width-matched controls? ---")
-zt = df[df.variant == "zT(64)"].groupby(["seed", "src", "tgt", "task"]).auc.mean()
-for ctrl in ("rand64", "slice64", "pca64"):
-    m = df[df.variant == ctrl].groupby(["seed", "src", "tgt", "task"]).auc.mean()
-    d = (zt - m).dropna()
-    t = d.mean() / (d.std(ddof=1) / np.sqrt(len(d)))
-    v = "zT WINS" if t > 2.03 else "zT loses" if t < -2.03 else "tie"
-    print(f"  zT vs {ctrl:<9}{d.mean():>+7.2f} AUC  t={t:>6.2f}   {v}")
-zs = df[df.variant == "zS(48)"].groupby(["seed", "src", "tgt", "task"]).auc.mean()
-for ctrl in ("rand48", "slice48", "pca48"):
-    m = df[df.variant == ctrl].groupby(["seed", "src", "tgt", "task"]).auc.mean()
-    d = (zs - m).dropna()
-    t = d.mean() / (d.std(ddof=1) / np.sqrt(len(d)))
-    v = "zS WINS" if t > 2.03 else "zS loses" if t < -2.03 else "tie"
-    print(f"  zS vs {ctrl:<9}{d.mean():>+7.2f} AUC  t={t:>6.2f}   {v}")
+    base = df[df.variant == "full(128)"].groupby(["seed", "src", "tgt", "task"]).auc.mean()
+    order = ["zT(64)", "rand64", "slice64", "pca64",
+             "zS(48)", "rand48", "slice48", "pca48", "zA(16)"]
+    print(f"{'variant':<12}{'mean AUC':>10}{'vs full':>9}{'t':>7}  better in")
+    print("-" * 52)
+    print(f"{'full(128)':<12}{base.mean():>10.2f}{'--':>9}{'':>7}")
+    for v in order:
+        m = df[df.variant == v].groupby(["seed", "src", "tgt", "task"]).auc.mean()
+        d = (m - base).dropna()
+        t = d.mean() / (d.std(ddof=1) / np.sqrt(len(d)))
+        print(f"{v:<12}{m.mean():>10.2f}{d.mean():>+9.2f}{t:>7.2f}  {int((d>0).sum())}/{len(d)}")
+
+    print("\n--- the question: does zT beat its OWN width-matched controls? ---")
+    zt = df[df.variant == "zT(64)"].groupby(["seed", "src", "tgt", "task"]).auc.mean()
+    for ctrl in ("rand64", "slice64", "pca64"):
+        m = df[df.variant == ctrl].groupby(["seed", "src", "tgt", "task"]).auc.mean()
+        d = (zt - m).dropna()
+        t = d.mean() / (d.std(ddof=1) / np.sqrt(len(d)))
+        v = "zT WINS" if t > 2.03 else "zT loses" if t < -2.03 else "tie"
+        print(f"  zT vs {ctrl:<9}{d.mean():>+7.2f} AUC  t={t:>6.2f}   {v}")
+    zs = df[df.variant == "zS(48)"].groupby(["seed", "src", "tgt", "task"]).auc.mean()
+    for ctrl in ("rand48", "slice48", "pca48"):
+        m = df[df.variant == ctrl].groupby(["seed", "src", "tgt", "task"]).auc.mean()
+        d = (zs - m).dropna()
+        t = d.mean() / (d.std(ddof=1) / np.sqrt(len(d)))
+        v = "zS WINS" if t > 2.03 else "zS loses" if t < -2.03 else "tie"
+        print(f"  zS vs {ctrl:<9}{d.mean():>+7.2f} AUC  t={t:>6.2f}   {v}")
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

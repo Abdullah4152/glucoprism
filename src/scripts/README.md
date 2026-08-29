@@ -14,8 +14,8 @@ The reproduction path, in order. Every script takes `--help`.
 | `corpus_summary.py` | subject and hour counts, for verification |
 
 **Do not run `freeze_evaluation_folds.py`** if you want to compare against our
-numbers — `data/splits_frozen.json` already holds the assignment every model in
-the paper was scored on.
+numbers — `data/processed/splits_frozen.json` already holds the assignment every
+model in the paper was scored on.
 
 ## 2. Pretraining
 
@@ -28,14 +28,21 @@ the paper was scored on.
 | `kaggle_submit.py` | submits a single run |
 
 ```bash
+# GlucoPRISM-C
 python pretrain_glucoprism.py --corpus corpus_v2fmt_ov40.npz --use-vib \
        --w-vib 0.1 --seed 0
+# GlucoPRISM-E -- note the bottleneck weight differs
+python pretrain_glucoprism.py --corpus corpus_v2fmt_ov40.npz --use-vib \
+       --w-vib 1.0 --sim-bias measured --seed 0
 ```
 
 Useful flags: `--no-protocol` switches the factorization objectives off while
 keeping every other component, `--d-sensor` sets the Sensor block width,
 `--w-vib` sets the KL price per nat, `--sim-bias measured` uses the measured
 calibration offset in the paired-sensor view.
+
+The released checkpoints' `config.json` is the authority on which value each
+model used: C is `w_vib: 0.1`, E is `w_vib: 1.0`.
 
 Baselines are in `baselines/<model>/reproduce.py`.
 
@@ -69,11 +76,21 @@ reports success on several real failure modes, and a stale payload once killed
 
 | Script | What it does |
 |---|---|
+| `build_derived_inputs.py` | the aggregations the table generator consumes |
 | `canonical_numbers.py` | recompute every quantity the paper cites |
-| `make_tables.py` | every LaTeX table |
-| `make_figures.py` | the result figures |
+| `make_all_tables.py` | **every table in the paper** |
+| `make_paper_figures.py` | every result figure in the paper |
+| `make_tables.py` | a reduced subset; superseded by `make_all_tables.py` |
 | `make_architecture_figure.py` | the architecture figure |
 | `lint_paper.py` | undefined macros and hand-typed literals in the paper |
+
+Order matters: `build_derived_inputs.py` → `canonical_numbers.py` →
+`make_all_tables.py` → `make_paper_figures.py`. The first writes the summary
+tables the others read; the second writes `canonical.json`, which the table
+generator loads.
+
+Both generators write under `GLUCOPRISM_OUT`. Set `GLUCOPRISM_TEX_OUT` and
+`GLUCOPRISM_FIG_OUT` to also write into a paper directory.
 
 `canonical_numbers.py` is the single source of truth. It writes
 `canonical.json` and `canonical.tex`, and the paper cites those macros instead

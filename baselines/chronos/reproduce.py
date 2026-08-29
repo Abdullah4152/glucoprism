@@ -10,7 +10,8 @@ import sys
 from pathlib import Path
 
 COMMON = Path(__file__).resolve().parent.parent / "common"
-MODELS = ['chronos']
+# Must match the keys of embed_zeroshot.py::MODELS exactly (see cgmformer).
+MODELS = ['Chronos-2', 'Chronos-2-small']
 
 
 def main() -> None:

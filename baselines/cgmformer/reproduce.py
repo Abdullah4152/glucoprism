@@ -10,7 +10,11 @@ import sys
 from pathlib import Path
 
 COMMON = Path(__file__).resolve().parent.parent / "common"
-MODELS = ['cgmformer']
+# Must match the keys of embed_zeroshot.py::MODELS exactly. A name that is not
+# a key raises KeyError inside the per-cohort try/except, which prints FAILED
+# and still exits 0 -- so a typo here looks like a successful run that produced
+# no embeddings.
+MODELS = ['CGMformer']
 
 
 def main() -> None:

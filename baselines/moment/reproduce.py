@@ -10,7 +10,8 @@ import sys
 from pathlib import Path
 
 COMMON = Path(__file__).resolve().parent.parent / "common"
-MODELS = ['moment']
+# Must match the keys of embed_zeroshot.py::MODELS exactly (see cgmformer).
+MODELS = ['MOMENT-small', 'MOMENT-large']
 
 
 def main() -> None:

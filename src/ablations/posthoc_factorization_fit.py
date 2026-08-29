@@ -301,7 +301,12 @@ def main() -> int:
 
     df = pd.DataFrame(rows)
     df.to_csv(out / f"posthoc_{a.encoder}.csv", index=False)
-    print("\n=== post-hoc factorization, task-averaged over 14 cells ===")
+    # Say how many cells were actually scored. This used to print "14 cells"
+    # unconditionally, including under --skip-cgmacros where only 10 are
+    # scored, and posthoc_factorization_collect.py parses on this line -- so a
+    # 10-cell result was collected and tabulated as a 14-cell one.
+    n_cells = df["cell"].nunique() if "cell" in df else 0
+    print(f"\n=== post-hoc factorization, task-averaged over {n_cells} cells ===")
     print(df.groupby("block")[["PR", "AUC"]].mean().round(1)
           .sort_values("AUC", ascending=False).to_string())
     return 0

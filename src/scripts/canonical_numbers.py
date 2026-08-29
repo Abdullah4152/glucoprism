@@ -40,11 +40,12 @@ from scipy.stats import wilcoxon
 
 A = (OUTDIR)
 OUT_J = A / "canonical.json"
-# Written to BOTH trees. Keeping only the final_materials copy meant the Overleaf
-# project silently kept a stale canonical.tex and every new macro compiled as an
-# undefined control sequence.
-OUT_TS = [(OUTDIR / "tex/canonical.tex"),
-          Path(r"D:\overleaf\glucoprismm\glucoprism_v2\canonical.tex")]
+# Written under GLUCOPRISM_OUT; set GLUCOPRISM_TEX_OUT to also write into a
+# paper directory so its \newcommand macros stay in step. This used to hard-code
+# an absolute path on the authors' machine (see make_tables.py for the same fix).
+OUT_TS = [(OUTDIR / "tex/canonical.tex")]
+if _os.environ.get("GLUCOPRISM_TEX_OUT"):
+    OUT_TS.append(Path(_os.environ["GLUCOPRISM_TEX_OUT"]) / "canonical.tex")
 OUT_T = OUT_TS[0]
 
 OURS = "GlucoPRISM-v2 + zA bottleneck (weak) [zA dropped]"

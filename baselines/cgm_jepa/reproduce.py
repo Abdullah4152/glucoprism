@@ -16,12 +16,17 @@ COMMON = ROOT / "baselines" / "common"
 SCRIPTS = ROOT / "src" / "scripts"
 MODEL = 'cgm_jepa'
 SEEDS = (0, 1, 2)
+# The corpus every arm in the paper trains on. Without this the baselines
+# would load the no-overlap shards while GlucoPRISM trains on _ov40, and the
+# comparison would no longer be paired -- see baselines/README.md.
+SHARD = "_ov40"
 
 
 def main() -> None:
     for seed in SEEDS:
         cmd = [sys.executable, str(COMMON / "pretrain.py"),
-               "--model", MODEL, "--seed", str(seed)]
+               "--model", MODEL, "--seed", str(seed),
+               "--shard-suffix", SHARD]
         print(f"\n=== pretrain seed {seed}")
         if subprocess.run(cmd).returncode:
             sys.exit(f"pretraining failed at seed {seed}")

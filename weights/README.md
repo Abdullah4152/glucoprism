@@ -1,41 +1,46 @@
 # Weights
 
-One folder per model. Everything here was trained by us on our public-only
-corpus, and ships as `safetensors` rather than pickle: a pickled checkpoint
-executes arbitrary code on load, and `safetensors` is a plain tensor container
-that cannot.
+One folder per model. Everything here is `safetensors`; nothing is pickled.
 
 ```
-glucoprism_c/   released model, within-cohort
-glucoprism_e/   released model, cross-cohort
-glucofm/        our reproduction of the backbone
-cgm_jepa/       our reproduction
-x_cgm_jepa/     our reproduction
-gluformer/      our reproduction (tiny variant)
-manifest.json   which training checkpoint each file came from
+glucoprism_c/    GlucoPRISM-C   -- the released model, within-cohort
+glucoprism_e/    GlucoPRISM-E   -- the released model, cross-cohort
+glucofm/         GlucoFM        -- the backbone, trained on our corpus
+cgm_jepa/        CGM-JEPA       -- trained on our corpus
+x_cgm_jepa/      X-CGM-JEPA     -- trained on our corpus
+gluformer/       GluFormer-tiny -- trained on our corpus
 ```
 
-## What is deliberately absent
+Third-party checkpoints used zero-shot (Chronos-2, MOMENT, Mantis, MantisV2,
+CGMformer) are **not** here. They belong to their authors and keep their own
+licences; `baselines/common/fetch_checkpoints.py` fetches and stages them.
 
-Chronos-2, MOMENT, Mantis, MantisV2 and CGMformer are evaluated in the paper but
-not stored here. We did not train them, and redistributing them would mean
-shipping other people's artefacts under our licence.
-`baselines/<model>/reproduce.py` fetches them from their original sources.
+## One seed per model
 
-## Which seed ships
+Every arm is trained at three seeds and the paper reports the seed-matched mean,
+because the seed standard deviation on this benchmark is close to 1.0 ROC-AUC.
+What ships is a single checkpoint per model:
 
-One checkpoint per released model, so the choice needs a rule rather than an
-eye. The rule, fixed before the transfer axis was examined: **the seed with the
-best mean over the 14 within-cohort cells at window level**, which is the
-paper's primary protocol.
+| model | seed | why |
+|---|---|---|
+| GlucoPRISM-C | 5 | chosen by `src/ablations/select_release_seed.py` on the held-out rule |
+| GlucoPRISM-E | 1 | best of its three seeds under the same rule |
+| GlucoFM | 0 | first seed; the baseline is not seed-selected |
 
-```bash
-python src/ablations/select_release_seed.py
-```
+A single checkpoint will not equal the paper's task-averaged numbers, which are
+means over seeds. Use `probe_frozen_folds.py` across seeds to reproduce a table
+row; use these weights to embed data.
 
-That recomputes every seed on all three axes and reports whether the axes the
-rule ignores would have chosen differently. For one of the two models they
-would, and the script says so — we did not change rules to make them agree.
+## Inference tensors only
+
+`glucoprism_c/` and `glucoprism_e/` hold **506,550** parameters — the encoder and
+the pooled Trait/State readout, and nothing else. The EMA target branch, the
+projection heads and the device head are used only during pretraining and are
+pruned. `src/scripts/export_inference_weights.py` verifies that the pruned
+checkpoint reproduces the full model's embeddings exactly before writing.
+
+Training checkpoints (`.pt`) are not shipped: they store every parameter twice,
+because the online and EMA branches share storage.
 
 ## Verifying
 
@@ -43,13 +48,14 @@ would, and the script says so — we did not change rules to make them agree.
 python src/scripts/verify_released.py
 ```
 
-If the released weights do not reproduce the embeddings the paper was scored on,
-every number in the paper is unverifiable, so this is checked rather than
-asserted.
+re-embeds four cohorts with each released checkpoint and compares the result
+against `data/reference_embeddings.json` — a statistical signature of the
+embeddings these weights are supposed to produce (shape, moments, per-column
+means, per-row norms). Any changed tensor moves those. The signature ships
+rather than the arrays, because this repository holds code and weights, not
+model output; it is ~5 KB instead of 2.3 MB, and unlike an exact hash it
+tolerates the last-bit float differences a different BLAS or GPU introduces.
 
-## The readout
+## Licence
 
-The released models are read as `[z_T || z_S]` with the 16-dimensional Sensor
-block `z_A` discarded — a slice, needing no retraining and no device labels.
-Reading the full 128-dimensional vector is a different model with different
-numbers; the paper reports both.
+MIT (`../LICENSE`), same as the code.

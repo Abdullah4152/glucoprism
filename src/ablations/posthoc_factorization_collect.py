@@ -33,15 +33,27 @@ for f in sorted(ART.glob("posthoc_*.log")):
         continue
     enc, n = m.group(1), int(m.group(2))
     txt = f.read_text(errors="replace")
-    tail = txt.split("task-averaged over 14 cells")[-1]
+    # Match however many cells the fit actually scored, and record it, so a
+    # --skip-cgmacros run (10 cells) is not silently collected as a full one.
+    hdr = re.search(r"task-averaged over (\d+) cells", txt)
+    if not hdr:
+        print(f"  [skip] {f.name}: no result header (run did not finish)")
+        continue
+    n_cells = int(hdr.group(1))
+    tail = txt[hdr.end():]
     for line in tail.splitlines():
         p = line.split()
         if len(p) == 3 and p[0] in ("zT", "zS", "zTzS", "encoder", "full", "zA"):
             rows.append(dict(encoder=enc, n_fit=n, block=p[0],
-                             pr=float(p[1]), auc=float(p[2])))
+                             pr=float(p[1]), auc=float(p[2]), cells=n_cells))
 
 df = pd.DataFrame(rows)
 df.to_csv(ART / "posthoc_sweep.csv", index=False)
+if not df.empty and df.cells.nunique() > 1:
+    print(f"  [warn] mixing runs scored over different cell counts: "
+          f"{sorted(df.cells.unique())} -- these are not comparable")
+elif not df.empty:
+    print(f"  all runs scored over {int(df.cells.iloc[0])} cells")
 
 ORDER = ["encoder", "zT", "zS", "zTzS", "full", "zA"]
 for enc in ("v4", "v6", "v7"):

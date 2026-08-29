@@ -47,7 +47,10 @@ from glucofm.model import GlucoFMEncoder                # noqa: E402
 from glucoprism.model import BlockedPool, PrismConfig   # noqa: E402
 
 SRC = ROOT
-RUNS = SRC / "experiments" / "kaggle_out"
+# Training runs live under GLUCOPRISM_RUNS (artifacts/runs by default), the
+# path every other script uses. The released copy pointed at
+# `experiments/kaggle_out`, which the release layout does not have.
+RUNS = _P(_os.environ.get("GLUCOPRISM_RUNS", OUTDIR / "runs"))
 OUT = (OUTDIR / "weights")
 PROC = SRC / "data" / "processed"
 OUT.mkdir(parents=True, exist_ok=True)

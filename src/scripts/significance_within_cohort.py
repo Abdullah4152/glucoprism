@@ -54,6 +54,10 @@ def main() -> None:
     ap.add_argument("--ref", default="GlucoFM (ours)")
     ap.add_argument("--metric", default="auc", choices=["auc", "pr", "f1"])
     ap.add_argument("--level", default="window", choices=["window", "subject"])
+    ap.add_argument("--expect-k", type=int, default=None,
+                    help="size of the pre-declared confirmatory family; the "
+                         "run fails if the family that materialises differs. "
+                         "The paper declares k=11.")
     ap.add_argument("--family", default="confirmatory",
                     choices=["confirmatory", "all"],
                     help="'confirmatory' corrects over the models we CLAIM about "
@@ -108,7 +112,19 @@ def main() -> None:
     r = pd.DataFrame(rows).sort_values("p_raw").reset_index(drop=True)
     # Holm-Bonferroni: sort p ascending, threshold alpha/(m-i), and once a test
     # fails every later one fails too.
+    #
+    # The family size is DERIVED from whichever models happen to be in
+    # final_table_long.csv. That is a silent-drift hazard: a multiplicity
+    # correction is only meaningful against a family declared before results are
+    # read, and if a baseline is missing upstream the correction quietly gets
+    # weaker. --expect-k makes the declared size explicit and fails loudly.
     m = len(r)
+    if a.expect_k and m != a.expect_k:
+        raise SystemExit(
+            f"confirmatory family has {m} members but --expect-k={a.expect_k} "
+            f"was declared.\nPresent: {sorted(r.model)}\n"
+            f"A missing baseline weakens the correction; add it upstream "
+            f"rather than accepting the smaller family.")
     r["p_holm"] = [min(1.0, (m - i) * p) for i, p in enumerate(r.p_raw)]
     r["p_holm"] = np.maximum.accumulate(r.p_holm)
     r["sig"] = np.where(r.p_holm < 0.05, "*", "")

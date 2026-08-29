@@ -10,7 +10,8 @@ import sys
 from pathlib import Path
 
 COMMON = Path(__file__).resolve().parent.parent / "common"
-MODELS = ['mantis']
+# Must match the keys of embed_zeroshot.py::MODELS exactly (see cgmformer).
+MODELS = ['Mantis', 'MantisV2']
 
 
 def main() -> None:

@@ -140,7 +140,11 @@ def package(username: str) -> Path:
     (out / "scripts").mkdir(parents=True)
     (out / "processed").mkdir(parents=True)
 
-    shutil.copytree(ROOT / "src" / "core" / "glucoprism", out / "src" / "glucoprism",
+    # The toolkit package is `cgmkit` (it was renamed for release); copying
+    # `src/core/glucoprism` raised FileNotFoundError before anything uploaded.
+    shutil.copytree(ROOT / "src" / "core" / "cgmkit", out / "src" / "cgmkit",
+                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    shutil.copytree(ROOT / "baselines", out / "src" / "baselines",
                     ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     # Must stay in step with the kernel template's copy loop: a script listed
     # there but missing here fails only once the kernel is already on a GPU.
@@ -215,8 +219,13 @@ import torch
 print("torch", torch.__version__, "| cuda", torch.cuda.is_available(),
       "|", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu")
 
-# run_pretrain / run_eval resolve paths relative to their own parents[1],
-# so recreate the project layout (scripts/ + src/ + data/) under /kaggle/working.
+# Released scripts resolve ROOT from GLUCOPRISM_ROOT, falling back to their own
+# parents[2]. The pre-release layout assumed parents[1], so staging scripts/ and
+# src/ directly under /kaggle/working made ROOT resolve to /kaggle and REFERENCE
+# to a directory that is never created. Recreate the real tree and export the
+# variable instead of relying on relative depth.
+os.environ["GLUCOPRISM_ROOT"] = str(WORK)
+os.environ.setdefault("GLUCOPRISM_OUT", str(WORK / "artifacts"))
 (WORK / "scripts").mkdir(exist_ok=True)
 # Copy EVERY script in the payload rather than an explicit list. Keeping a second
 # hand-maintained list in step with package() failed twice: a script present in
@@ -224,9 +233,16 @@ print("torch", torch.__version__, "| cuda", torch.cuda.is_available(),
 # on a GPU, as "can't open file ... run_X.py".
 for _s in SCRIPTS.glob("*.py"):
     shutil.copy(_s, WORK / "scripts" / _s.name)
-(WORK / "src").mkdir(exist_ok=True)
-if not (WORK / "src" / "glucoprism").exists():
-    shutil.copytree(SRC / "glucoprism", WORK / "src" / "glucoprism")
+# Rebuild the release layout the scripts expect: src/scripts, src/core/cgmkit,
+# src/core/released_model, baselines. `cgmkit` is the current package name.
+for _sub, _dst in ((SRC / "cgmkit", WORK / "src" / "core" / "cgmkit"),
+                   (SRC / "baselines", WORK / "baselines")):
+    if _sub.exists() and not _dst.exists():
+        _dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(_sub, _dst)
+(WORK / "src" / "scripts").mkdir(parents=True, exist_ok=True)
+for _s in SCRIPTS.glob("*.py"):
+    shutil.copy(_s, WORK / "src" / "scripts" / _s.name)
 
 # GlucoPRISM takes its proposal knobs on the command line; the baselines take
 # --model. Both write their checkpoint into WORK/checkpoints for the probe.

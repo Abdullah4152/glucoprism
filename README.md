@@ -44,8 +44,8 @@ python src/scripts/cross_cohort_transfer.py  # all twelve transfer directions
 python src/scripts/verify_released.py        # weights reproduce paper embeddings
 ```
 
-`data/splits_frozen.json` is the subject-to-fold assignment behind every number
-in the paper. It was written before the first model was trained and is shared by
+`data/processed/splits_frozen.json` is the subject-to-fold assignment behind
+every number in the paper. It was written before the first model was trained and is shared by
 every model, which is what makes the comparisons paired. **Do not regenerate it**
 if you intend to compare against our numbers.
 
@@ -57,10 +57,22 @@ See `data/README.md`. We cannot redistribute them.
 **2. Build the corpus.**
 
 ```bash
-python src/scripts/build_corpus.py --day-overlap 40
-python src/scripts/pack_corpus_for_trainer.py
+python src/scripts/build_corpus.py --all --day-overlap 0.4 --out-suffix _ov40
+python src/scripts/pack_corpus_for_trainer.py \
+       --datasets replacebg stanford shanghait2dm colas bigideas --shard-suffix _ov40
 python src/scripts/corpus_summary.py         # compare against data/corpus_report.json
 ```
+
+`--day-overlap` is a **fraction**, not a percentage: consecutive 24 h windows
+overlap by `r`, so the stride is `(1 - r) * 24 h`. Passing `40` makes the stride
+negative and the build fails on every cohort.
+
+Pass the five cohorts explicitly. `pack_corpus_for_trainer.py`'s default list
+also contains `d1namo`, which is not part of the corpus the released models were
+trained on and would add a sixth cohort.
+
+This produces **10,952 windows from 514 subjects**, which is what
+`data/corpus_report.json` records.
 
 **3. Pretrain.**
 
@@ -68,8 +80,13 @@ python src/scripts/corpus_summary.py         # compare against data/corpus_repor
 python src/scripts/pretrain_glucoprism.py --corpus corpus_v2fmt_ov40.npz \
        --use-vib --w-vib 0.1 --seed 0                        # GlucoPRISM-C
 python src/scripts/pretrain_glucoprism.py --corpus corpus_v2fmt_ov40.npz \
-       --use-vib --w-vib 0.1 --sim-bias measured --seed 0    # GlucoPRISM-E
+       --use-vib --w-vib 1.0 --sim-bias measured --seed 0    # GlucoPRISM-E
 ```
+
+**The two released models use different bottleneck weights.** GlucoPRISM-C is
+`--w-vib 0.1`, GlucoPRISM-E is `--w-vib 1.0`. Both are recorded in the shipped
+configs (`weights/glucoprism_c/config.json`, `weights/glucoprism_e/config.json`)
+and that is the authority. Training E at 0.1 produces a different model.
 
 Baselines have their own folders: `baselines/<model>/reproduce.py`.
 

@@ -12,13 +12,19 @@ silently merge two cohorts' "S01".
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-RAW = Path(__file__).resolve().parents[3] / "data" / "raw"
+# This module sits at src/core/cgmkit/data/, one level deeper than its siblings
+# (src/core/cgmkit/release_weights.py is correct at parents[3]), so the
+# repository root is parents[4]. It must also honour GLUCOPRISM_ROOT, which the
+# root README promises every path resolution does.
+RAW = Path(os.environ.get("GLUCOPRISM_ROOT",
+                          Path(__file__).resolve().parents[4])) / "data" / "raw"
 
 SCHEMA = ["dataset", "subject", "device", "sampling_min", "timestamp", "glucose_mgdl"]
 

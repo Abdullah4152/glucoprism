@@ -10,13 +10,18 @@ kaggle*.json
 *.pem
 
 # Data. The raw cohorts are public but not ours to redistribute, and the built
-# corpus is large. data/splits_frozen.json is the deliberate exception.
+# corpus is large. The frozen folds are the deliberate exception.
+#
+# Note the trailing `/*`: excluding `data/processed/` itself would make the
+# negations below unreachable, because git does not descend into an excluded
+# directory. Excluding its *contents* keeps them effective.
 data/raw/
 data/interim/
-data/processed/
+data/processed/*
+!data/processed/splits_frozen.json
+!data/processed/pretrain_holdout.json
 *.npz
 *.npy
-!data/splits_frozen.json
 
 # Training artefacts
 artifacts/

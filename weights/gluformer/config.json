@@ -1,0 +1,15 @@
+{
+  "cfg": {
+    "vocab_size": 460,
+    "embed_dim": 128,
+    "nhead": 4,
+    "num_layers": 4,
+    "dim_feedforward": 256,
+    "max_seq_length": 25000,
+    "dropout": 0.1,
+    "pooling": "max"
+  },
+  "variant": "tiny",
+  "epochs": 100,
+  "seed": 43
+}
