@@ -228,12 +228,39 @@ df = pd.concat([df[df.run != GPC], m3], ignore_index=True)
 W = df[df.level == "window"]
 
 # ================================================================ tbl_corpus
-rows = [
-    r"REPLACE-BG \citep{aleppo2017replacebg} & Dexcom G4 & 5 & 226 & 9,035 & 0.977 \\",
-    r"Stanford \citep{hall2018glucotypes} & Dexcom & 5 & 27 & 279 & 0.979 \\",
-    r"ShanghaiT2DM \citep{zhao2023shanghai} & FreeStyle Libre & 15 & 40 & 247 & 0.333 \\",
-    r"Col\'as \citep{colas2019detection} & Medtronic iPro & 5 & 191 & 287 & 0.996 \\",
-    r"BIG IDEAs \citep{bent2021bigideas} & Dexcom & 5 & 16 & 70 & 0.929 \\",
+# Rows are DERIVED from the built corpus, not typed. They used to be five string
+# literals carrying the no-overlap counts (9,035 / 279 / 247 / 287 / 70, summing
+# to 500 subjects) while the Total was computed from canonical.json and tracked
+# the corpus actually trained on (514 / 10,952). The table therefore disagreed
+# with itself: the rows froze while the total moved with the data.
+_COHORTS = [
+    ("replacebg", r"REPLACE-BG \citep{aleppo2017replacebg}", "Dexcom G4", 5),
+    ("stanford", r"Stanford \citep{hall2018glucotypes}", "Dexcom", 5),
+    ("shanghait2dm", r"ShanghaiT2DM \citep{zhao2023shanghai}",
+     "FreeStyle Libre", 15),
+    ("colas", r"Col\'as \citep{colas2019detection}", "Medtronic iPro", 5),
+    ("bigideas", r"BIG IDEAs \citep{bent2021bigideas}", "Dexcom", 5),
+]
+_report = {d["dataset"]: d for d in json.loads(
+    (A / ".." / "data" / "processed" / "corpus_report.json").read_text()
+    if (A / ".." / "data" / "processed" / "corpus_report.json").exists()
+    else (A / "corpus_report.json").read_text())}
+rows, _sub, _win = [], 0, 0
+for _key, _label, _device, _rate in _COHORTS:
+    _r = _report.get(_key)
+    if _r is None or not _r.get("pt_windows"):
+        raise SystemExit(f"tbl_corpus: {_key} has no pretraining windows in "
+                         f"corpus_report.json -- rebuild the corpus first")
+    _sub += _r["pt_subjects"]
+    _win += _r["pt_windows"]
+    rows.append(rf"{_label} & {_device} & {_rate} & {_r['pt_subjects']} & "
+                rf"{_r['pt_windows']:,} & {_r['pt_mean_coverage']:.3f} \\")
+if (_sub, _win) != (CANON["nsubj"], CANON["nwin"]):
+    raise SystemExit(
+        f"tbl_corpus: rows sum to {_sub}/{_win} but canonical.json says "
+        f"{CANON['nsubj']}/{CANON['nwin']}. Rows and total describe different "
+        f"corpora; rebuild both from one corpus build.")
+rows += [
     r"\midrule",
     rf"\textbf{{Total (public only)}} & --- & --- & \textbf{{{CANON['nsubj']}}} "
     rf"& \textbf{{{CANON['nwin']:,}}} & --- \\",
@@ -679,13 +706,14 @@ if CS.exists():
         r"released model on the same two seeds. Width is varied with $z_T$ held "
         r"at 64 so $z_S$ absorbs the difference; the confound is therefore "
         r"$z_A$-versus-$z_S$ width, not $z_A$-versus-$z_T$. \textbf{The benefit "
-        r"of deleting the block rises monotonically with the price it pays per "
-        r"nat} --- $+0.03$, $+0.55$, $+1.31$, $+1.50$ as $\beta$ goes "
-        r"$0.03 \to 1.0$ --- which is what the addressability account predicts "
-        r"and what a pure-regularisation account does not: a regulariser's "
-        r"value would not track how hard the block is squeezed. Width behaves "
-        r"the same way, with an 8-dimensional block too small to absorb "
-        r"anything worth removing.",
+        r"of deleting the block rises with the price it pays per nat} --- about "
+        r"$+0.5$ at $\beta \leq 0.1$ against about $+1.6$ at $\beta \geq 0.3$ "
+        r"--- which is what the addressability account predicts and what a "
+        r"pure-regularisation account does not: a regulariser's value would not "
+        r"track how hard the block is squeezed. Within each pair the two arms "
+        r"are indistinguishable, so we read a step rather than a monotone "
+        r"ladder. Width is the weaker knob: all three widths sit inside one "
+        r"seed standard deviation of each other.",
         "tab:capacity",
         r"Setting & Full readout & $z_A$ dropped & Gain (window) & "
         r"Gain (subject) \\",
@@ -1700,10 +1728,9 @@ write("tbl_repro", tab(
          r"(\num{522160} parameters, verified bit-identical against the "
          r"authors' released weights at $0.0$ maximum absolute difference); they "
          r"differ only in the pretraining objective, which is why they land "
-         r"$0.01$ \auc{} apart here. The GlucoFM row is the parity run built "
-         r"for this comparison rather than the run the headline tables use; the "
-         r"two differ by $0.89$ \auc, inside the $\sdfmwindow$ seed standard "
-         r"deviation of Figure~\ref{fig:seedsd}."))
+         r"\repjepagap{} \auc{} apart here. The GlucoFM row is the same three "
+         r"runs the headline tables use, averaged per cell here and per seed "
+         r"there; the two agree to \repfmgap{} \auc."))
 
 # copy figures too
 for fg in FIGS:

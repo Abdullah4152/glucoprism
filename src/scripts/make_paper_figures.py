@@ -706,7 +706,9 @@ def fig_nulls():
     axs[1].plot(g.index, g.values, marker="o", ms=3.5, lw=1.3, color=S.ORANGE)
     axs[1].axhspan(g.mean() - 1.0, g.mean() + 1.0, color=S.GREY, alpha=0.18,
                    lw=0, label="$\\pm1$ seed $\\sigma$")
-    axs[1].set_xlabel("\\% of REPLACE-BG retained")
+    # Plain "%": these labels are drawn by matplotlib, not LaTeX, so an escaped
+    # "\%" renders the backslash literally.
+    axs[1].set_xlabel("% of REPLACE-BG retained")
     axs[1].set_ylabel("window ROC-AUC")
     axs[1].set_title("corpus volume", fontsize=8.5, pad=4)
     axs[1].legend(loc="lower right", fontsize=5.6)
