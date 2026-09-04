@@ -1844,6 +1844,157 @@ write("tbl_repro", tab(
          r"runs the headline tables use, averaged per cell here and per seed "
          r"there; the two agree to \repfmgap{} \auc."))
 
+# ------------------------------------------------------------------ tbl_hpp
+# External validation. Unlike every other table here, these numbers cannot be
+# recomputed from this repository: the cohort is governed by a data use
+# agreement and lives inside its owner's trusted research environment, so
+# neither the data nor its loader is distributed (see the repository README).
+# What leaves that environment is a few kilobytes of model x endpoint x metric
+# aggregates, and the table is generated from them for the same reason every
+# other table here is generated -- so the paper cannot drift from the
+# measurement. Absent that file the branch skips, which is the expected state
+# for anyone without cohort access; `evaluate_external.py` produces the same
+# aggregates for a cohort of your own.
+_HPP_P = A / "hpp_results.csv"
+if not _HPP_P.exists():
+    print("  tbl_hpp          SKIPPED (external-cohort results not distributed)")
+else:
+    _H = pd.read_csv(_HPP_P)
+    _HT = ["diabetes", "hyperlipidemia", "obesity"]
+
+    def _hpp(model: str, metric: str, split: str = "cv", task: str | None = None):
+        s = _H[(_H.model == model) & (_H.metric == metric) & (_H.split == split)]
+        s = s[s.task == task] if task else s
+        return float(s.value.mean()) if len(s) else float("nan")
+
+    def _hpp_row(label: str, model: str, indent: bool = False) -> str:
+        """ROC-AUC only. PR-AUC and the device split moved to
+        Table~\\ref{tab:hppfull}: as single averaged columns here they crowded
+        the headline metric while hiding the per-endpoint structure that makes
+        either of them worth reading."""
+        cells = [f"{_hpp(model, 'roc_auc', task=t):.1f}" for t in _HT]
+        cells.append(f"{_hpp(model, 'roc_auc'):.1f}")
+        name = rf"\quad {label}" if indent else label
+        return f"{name} & " + " & ".join(cells) + r" \\"
+
+    rows = [r"\multicolumn{5}{l}{\emph{Baselines that need no learned representation}} \\",
+            _hpp_row("Mean glucose (1 feature)", "cgm_mean"),
+            _hpp_row("Interpolated window (raw)", "raw"),
+            _hpp_row("Classical CGM indices (iglu)", "iglu"),
+            r"\addlinespace[2pt]\multicolumn{5}{l}{\emph{CGM foundation models, zero-shot}} \\",
+            _hpp_row("CGM-JEPA", "cgm_jepa"),
+            _hpp_row("X-CGM-JEPA", "x_cgm_jepa"),
+            _hpp_row("GluFormer-tiny", "gluformer"),
+            _hpp_row("GlucoFM (our reproduction)", "glucofm"),
+            _hpp_row("GlucoFM, trunc-112", "glucofm__trunc112", indent=True),
+            r"\addlinespace[2pt]\multicolumn{5}{l}{\emph{Ours}} \\",
+            _hpp_row(r"\textbf{GlucoPRISM-C} $[\zt\|\zs]$", "glucoprism_c__zTzS"),
+            _hpp_row(r"GP-C, $z_A$ \emph{kept}", "glucoprism_c__full", indent=True),
+            _hpp_row(r"GP-C, $\zt$ only", "glucoprism_c__zT", indent=True),
+            _hpp_row(r"GP-C, $\zs$ only", "glucoprism_c__zS", indent=True),
+            _hpp_row(r"GP-C, $\za$ only", "glucoprism_c__zA", indent=True),
+            _hpp_row(r"\textbf{GlucoPRISM-E} $[\zt\|\zs]$", "glucoprism_e__zTzS"),
+            _hpp_row(r"GP-E, $z_A$ \emph{kept}", "glucoprism_e__full", indent=True),
+            _hpp_row(r"GP-E, $\zt$ only", "glucoprism_e__zT", indent=True)]
+
+    # Run the bolding contest FIRST, then shade. `\rowcolor` is in _SKIP, so a
+    # row carrying it is dropped from the contest entirely: shading our two
+    # headline rows up front silently bolded the runner-up in three of four
+    # columns and made the `zA kept` row read as the winner -- the opposite of
+    # what the section argues.
+    rows = bold_best(rows, {1: "max", 2: "max", 3: "max", 4: "max"})
+    rows = [r"\rowcolor{oursbg}" + r
+            if r.lstrip().startswith(r"\textbf{GlucoPRISM") else r
+            for r in rows]
+
+    write("tbl_hpp", tab(
+        "lrrr >{\\columncolor{oursbg}}r",
+        r"\textbf{Zero-shot external validation on the Human Phenotype "
+        r"Project.} \num{\hppsubj} adults, \num{\hppwins} windows, FreeStyle "
+        r"Libre Pro, absent from pretraining and from the frozen folds. "
+        r"Subject-level probing, 10 iterations $\times$ 5-fold subject-grouped "
+        r"CV, identical protocol to Table~\ref{tab:percell}. Endpoints DR "
+        r"(diabetes risk, assayed blood HbA1c $\geq 5.7\%$), HL "
+        r"(hyperlipidemia), OB (obesity); insulin resistance is absent because "
+        r"HPP assays no insulin. Rows marked $z_A$ \emph{kept} are the same "
+        r"encoder read \emph{without} discarding the Sensor block, so the "
+        r"difference from the row above isolates this paper's intervention; "
+        r"\emph{trunc-112} is GlucoFM cut to the width of $[\zt\|\zs]$. This "
+        r"cohort is reported descriptively and is \textbf{not} part of the "
+        r"pre-declared family of \famk{} corrected in "
+        r"Section~\ref{sec:headline}.",
+        "tab:hpp",
+        r" & \multicolumn{4}{c}{ROC-AUC} \\"
+        "\n"
+        r"\cmidrule(lr){2-5}"
+        "\n"
+        r"Model & DR & HL & OB & \textbf{Avg} \\",
+        rows,
+        note=r"PR-AUC and the cross-device split are in "
+             r"Table~\ref{tab:hppfull} rather than here: as single averaged "
+             r"columns they crowded the headline metric while hiding the "
+             r"per-endpoint structure that makes either worth reading. Fold "
+             r"standard deviations run $1.2$--$2.2$ \auc{} throughout and are "
+             r"given per cell there."))
+
+    # Everything the main table leaves out: PR-AUC and the device split, both
+    # per endpoint rather than averaged, plus fold dispersion.
+    rows = []
+    for m in _H[_H.split == "cv"].model.drop_duplicates():
+        cells = []
+        for metric in ("roc_auc", "pr_auc"):
+            for t in _HT:
+                s = _H[(_H.model == m) & (_H.metric == metric)
+                       & (_H.split == "cv") & (_H.task == t)]
+                cells.append(
+                    f"{s.value.iloc[0]:.1f}\\,\\tiny$\\pm${s.sd.iloc[0]:.1f}"
+                    if len(s) else "--")
+        # Transfer is a single fit on a fixed split, so it carries no fold sd.
+        for t in _HT:
+            s = _H[(_H.model == m) & (_H.metric == "roc_auc")
+                   & (_H.split == "transfer") & (_H.task == t)]
+            cells.append(f"{s.value.iloc[0]:.1f}" if len(s) else "--")
+        d = _H[_H.model == m].dim.iloc[0]
+        rows.append(f"\\texttt{{{m.replace('_', chr(92) + '_')}}} & "
+                    f"{'' if pd.isna(d) else int(d)} & " + " & ".join(cells) + r" \\")
+    write("tbl_hppfull", tab(
+        "llrrrrrrrrr",
+        r"\textbf{HPP per cell: dispersion, PR-AUC and the cross-device "
+        r"split.} Every row of Table~\ref{tab:hpp}, with the two metrics that "
+        r"table omits. ROC-AUC and PR-AUC are mean $\pm$ standard deviation "
+        r"over $10\times5$ subject-grouped folds. \emph{Transfer} fits on the "
+        r"cohort's first sensor variant and scores on the second, dropping the "
+        r"\num{52} subjects who hold both (\num{\hppsingledev} remain); it is "
+        r"one fit on a fixed split, so it carries no fold dispersion. "
+        r"\emph{d} is the probe input width, which matters for reading the "
+        r"block rows: a narrow input is better regularised at any fixed $n$, so "
+        r"$\za$ at 16 dimensions is not comparable to $\zt$ at 64 without the "
+        r"width-matched controls of Appendix~\ref{app:controls}.",
+        "tab:hppfull",
+        r"Representation & $d$ & \multicolumn{3}{c}{ROC-AUC} & "
+        r"\multicolumn{3}{c}{PR-AUC} & \multicolumn{3}{c}{Transfer ROC-AUC} \\"
+        "\n"
+        r"\cmidrule(lr){3-5}\cmidrule(lr){6-8}\cmidrule(lr){9-11}"
+        "\n"
+        r" & & DR & HL & OB & DR & HL & OB & DR & HL & OB \\",
+        rows, wide=True, long=True,
+        note=r"The transfer columns are a between-subject shift as well as a "
+             r"hardware one --- the two variants are held by disjoint "
+             r"participants --- and both sample at 15 minutes, so this is a "
+             r"weaker test than CGMacros' same-day paired windows. It is "
+             r"nonetheless the only cross-device comparison available at this "
+             r"scale, at $206\times$ the subject count. Rows carry the "
+             r"representation identifiers the evaluation driver emits rather "
+             r"than display names, so a group with HPP access can check the "
+             r"table line by line against their own run of it."))
+
+    # Optional provenance column: flags rows that were transcribed from a
+    # terminal rather than written straight from the probe objects.
+    if "source" in _H.columns and set(_H.source.unique()) != {"measured"}:
+        print(f"  tbl_hpp          NOTE: source="
+              f"{sorted(set(_H.source.unique()))} -- not all rows are "
+              f"measured output")
+
 # copy figures too
 for fg in FIGS:
     fg.mkdir(parents=True, exist_ok=True)

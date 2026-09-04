@@ -60,7 +60,15 @@ reports success on several real failure modes, and a stale payload once killed
 | `probe_frozen_folds.py` | frozen-fold probing, window and subject level |
 | `probe_pretrained_models.py` | probing for the non-blocked models |
 | `evaluate_models.py` | end-to-end evaluation driver |
+| `evaluate_external.py` | zero-shot evaluation on a cohort of your own |
 | `collect_results.py` | gather run outputs into one table |
+
+`evaluate_external.py` is the driver behind the paper's external-validation
+table. It is cohort-agnostic by construction: it takes a window shard and a
+subject-level label `.csv` and knows nothing about any particular dataset, so it
+runs on the paper's fifth cohort and on yours identically. The paper's cohort is
+governed by a data use agreement and is not distributed here, and neither is its
+loader — see the repository README.
 
 ## 4. Headline results
 

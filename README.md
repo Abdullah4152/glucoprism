@@ -1,7 +1,7 @@
 # GlucoPRISM
 
 Code, weights and reproduction instructions for *Naming the Nuisance: Reserved
-Subspaces Buy Control, Not Disentanglement, in CGM Foundation Models*.
+Subspaces Buy Addressability, Not Disentanglement in CGM Foundation Models*.
 
 This repository reproduces every number in the paper. It contains no results —
 those are in the paper. What follows is how to regenerate them.
@@ -108,6 +108,33 @@ python src/scripts/make_figures.py
 `canonical_numbers.py` recomputes every quantity the paper cites and writes
 `canonical.tex`. The paper cites those macros instead of typed literals, so a
 number cannot drift from the data behind it.
+
+## External validation on your own cohort
+
+The paper's external-validation table is a fifth cohort the models never saw:
+frozen encoders, subject-level aggregation, one linear probe. That driver is
+here and is deliberately cohort-agnostic:
+
+```bash
+python src/scripts/evaluate_external.py \
+       --shard mycohort.npz --labels mycohort.csv --blocks
+```
+
+It takes only the two artefacts every cohort in this repository is reduced to
+before probing — a window shard in the format `build_corpus.py` writes, and a
+`.csv` with a `subject` column plus one column per endpoint. `--split-col`
+additionally fits on one value of a shard column (a device, a site, a batch) and
+scores on another, which is the cross-device test in the paper.
+
+**The paper's external cohort is not distributed here, and neither is its
+loader.** The Human Phenotype Project is owned by Pheno.AI, governed by a data
+use agreement, and reachable only inside their trusted research environment;
+access is arranged with them directly and is not ours to grant. A loader and
+label construction for it would encode that dataset's internal schema, which is
+not ours to publish, so those stay inside the enclave. What generalises — the
+evaluation protocol — is the script above. With HPP access you can rebuild the
+two inputs from the paper's appendix and reproduce the table; without it, you
+can run the identical protocol on data of your own.
 
 ## The protocol
 
